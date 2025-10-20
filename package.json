@@ -1,0 +1,41 @@
+{
+  "name": "guitar-content-tracker",
+  "version": "1.0.0",
+  "description": "> ระบบจัดการเพลงสำหรับทำคลิปกีตาร์สั้น — พัฒนาด้วย Next.js + Prisma + API สาธารณะ",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Khaojees/guitar-content-tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Khaojees/guitar-content-tracker/issues"
+  },
+  "homepage": "https://github.com/Khaojees/guitar-content-tracker#readme",
+  "dependencies": {
+    "@prisma/client": "^6.17.1",
+    "@types/node": "^24.9.0",
+    "@types/react": "^19.2.2",
+    "next": "^15.5.6",
+    "prisma": "^6.17.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^19.2.2",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.15"
+  }
+}

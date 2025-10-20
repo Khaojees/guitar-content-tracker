@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ศิลปิน
+model Artist {
+  id        Int      @id @default(autoincrement())
+  name      String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  albums  Album[]
+  sources Source[]
+
+  @@index([name])
+}
+
+// อัลบั้ม
+model Album {
+  id        Int      @id @default(autoincrement())
+  name      String
+  imageUrl  String?
+  artistId  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  artist Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  tracks Track[]
+  sources Source[]
+
+  @@index([artistId])
+  @@index([name])
+}
+
+// เพลง
+model Track {
+  id        Int      @id @default(autoincrement())
+  name      String
+  albumId   Int
+  duration  Int?     // milliseconds
+  trackNumber Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  album       Album        @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  trackStatus TrackStatus?
+  sources     Source[]
+
+  @@index([albumId])
+  @@index([name])
+}
+
+// สถานะเพลง
+model TrackStatus {
+  id        Int      @id @default(autoincrement())
+  trackId   Int      @unique
+  status    String   @default("idea") // idea, ready, recorded, posted
+  starred   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  track    Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  postLogs PostLog[]
+
+  @@index([status])
+  @@index([starred])
+}
+
+// บันทึกการโพสต์
+model PostLog {
+  id            Int      @id @default(autoincrement())
+  trackStatusId Int
+  platform      String   // TikTok, YouTube, Facebook
+  url           String
+  postedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  trackStatus TrackStatus @relation(fields: [trackStatusId], references: [id], onDelete: Cascade)
+
+  @@index([trackStatusId])
+  @@index([platform])
+}
+
+// External IDs สำหรับกัน duplicate
+model Source {
+  id         Int      @id @default(autoincrement())
+  type       String   // itunes_artist, itunes_album, itunes_track
+  externalId String   // external ID จาก API
+  artistId   Int?
+  albumId    Int?
+  trackId    Int?
+  createdAt  DateTime @default(now())
+
+  artist Artist? @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  album  Album?  @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  track  Track?  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([type, externalId])
+  @@index([type, externalId])
+}
