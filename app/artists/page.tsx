@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import ArtistCard from './ArtistCard'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -8,7 +9,11 @@ export default async function ArtistsPage() {
     include: {
       albums: {
         include: {
-          tracks: true,
+          tracks: {
+            include: {
+              trackStatus: true,
+            },
+          },
         },
       },
     },
@@ -18,57 +23,68 @@ export default async function ArtistsPage() {
   })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">👤 ศิลปิน</h1>
-        <p className="mt-2 text-gray-600">จัดการศิลปินและเพลงทั้งหมด ({artists.length})</p>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold text-slate-900">
+            ศิลปินที่คุณกำลังติดตาม
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            บริหารแคตตาล็อกศิลปินทั้งหมด พร้อมดูจำนวนอัลบั้มและเพลงสำคัญ
+            ที่ต้องติดตามความคืบหน้าการทำคอนเทนต์แบบเรียลไทม์.
+          </p>
+        </div>
+        <span className="inline-flex rounded-full bg-indigo-100 px-5 py-2 text-sm font-semibold text-indigo-600">
+          ศิลปินทั้งหมด {artists.length} ราย
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {artists.map((artist) => {
           const totalTracks = artist.albums.reduce(
             (sum, album) => sum + album.tracks.length,
             0
           )
 
+          const importantTracksCount = artist.albums.reduce((count, album) => {
+            return (
+              count +
+              album.tracks.filter(
+                (track) =>
+                  track.trackStatus?.status === 'recorded' ||
+                  track.trackStatus?.status === 'posted'
+              ).length
+            )
+          }, 0)
+
           return (
-            <Link
+            <ArtistCard
               key={artist.id}
-              href={`/artists/${artist.id}`}
-              className="block bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden"
-            >
-              <div className="p-6">
-                {artist.imageUrl && (
-                  <img
-                    src={artist.imageUrl}
-                    alt={artist.name}
-                    className="w-full h-48 object-cover rounded-lg mb-4"
-                  />
-                )}
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {artist.name}
-                </h3>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>อัลบั้ม: {artist.albums.length}</p>
-                  <p>เพลง: {totalTracks}</p>
-                </div>
-              </div>
-            </Link>
+              artist={{
+                id: artist.id,
+                name: artist.name,
+                imageUrl: artist.imageUrl,
+                albumsCount: artist.albums.length,
+                tracksCount: totalTracks,
+                importantTracksCount,
+              }}
+            />
           )
         })}
       </div>
 
       {artists.length === 0 && (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-600 mb-4">ยังไม่มีศิลปิน</p>
-          <a
+        <div className="glass-surface flex flex-col items-center gap-6 rounded-3xl bg-white/90 p-14 text-center">
+          <div className="text-sm text-slate-500">ยังไม่มีศิลปินที่บันทึกไว้</div>
+          <Link
             href="/search"
-            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            className="inline-flex items-center rounded-full bg-indigo-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-[1px] hover:bg-indigo-600"
           >
-            ค้นหาศิลปิน
-          </a>
+            ค้นหาและเพิ่มศิลปินใหม่
+          </Link>
         </div>
       )}
     </div>
   )
 }
+

@@ -1,6 +1,27 @@
 'use client'
 
 import { useState } from 'react'
+import {
+  Card,
+  Input,
+  Select,
+  Button,
+  List,
+  Avatar,
+  Typography,
+  message,
+  Empty,
+  Tag,
+} from 'antd'
+import { SearchOutlined, SaveOutlined } from '@ant-design/icons'
+
+const { Title, Paragraph, Text } = Typography
+
+const ENTITY_OPTIONS = [
+  { value: 'musicArtist', label: 'ศิลปิน' },
+  { value: 'song', label: 'เพลง' },
+  { value: 'album', label: 'อัลบั้ม' },
+]
 
 export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -9,8 +30,8 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState<string | null>(null)
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSearch = async (event: React.FormEvent) => {
+    event.preventDefault()
     setLoading(true)
     setResults([])
 
@@ -22,6 +43,7 @@ export default function SearchPage() {
       setResults(data.results || [])
     } catch (error) {
       console.error('Search error:', error)
+      message.error('ไม่สามารถค้นหาข้อมูลจาก iTunes ได้ กรุณาลองใหม่อีกครั้ง')
     } finally {
       setLoading(false)
     }
@@ -42,103 +64,182 @@ export default function SearchPage() {
       })
 
       const data = await response.json()
-      alert(data.message + (data.totalTracks ? ` (${data.totalTracks} เพลง)` : ''))
+      if (response.ok) {
+        const total = data.totalTracks
+          ? ` (${data.totalTracks} เพลงที่เกี่ยวข้อง)`
+          : ''
+        message.success(`บันทึกศิลปินเรียบร้อยแล้ว${total}`)
+      } else {
+        message.error(data.error || 'ไม่สามารถบันทึกศิลปินได้')
+      }
     } catch (error) {
-      console.error('Save error:', error)
-      alert('บันทึกไม่สำเร็จ')
+      console.error('Save artist error:', error)
+      message.error('เกิดข้อผิดพลาดในการบันทึกศิลปิน')
     } finally {
       setSaving(null)
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">🔍 ค้นหาเพลง</h1>
-        <p className="mt-2 text-gray-600">ค้นหาและบันทึกศิลปิน/เพลงจาก iTunes API</p>
-      </div>
+  const showSaveButton = (item: any) =>
+    searchEntity === 'musicArtist' && Boolean(item.artistId)
 
-      <form onSubmit={handleSearch} className="bg-white rounded-lg shadow p-6">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ค้นหา
+  return (
+    <div className="space-y-10">
+      <section className="space-y-3">
+        <Title level={2} className="!mb-2 !text-slate-900">
+          ค้นหาและนำเข้าข้อมูลจาก iTunes
+        </Title>
+        <Paragraph className="!mb-0 max-w-3xl text-slate-600">
+          เจอศิลปินหรือเพลงใหม่แล้วอยากเก็บเข้าสู่ระบบ? ใช้เครื่องมือนี้ค้นหาจาก
+          iTunes แล้วบันทึกเข้าฐานข้อมูล เพื่อนำไปติดตามสถานะและวางแผนคอนเทนต์ต่อได้ทันที.
+        </Paragraph>
+      </section>
+
+      <Card className="glass-surface border-none bg-white/90">
+        <form onSubmit={handleSearch} className="grid gap-6 md:grid-cols-[2fr_1fr] md:items-end">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-600">
+              คำค้นหาที่ต้องการ
             </label>
-            <input
-              type="text"
+            <Input
+              size="large"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="ชื่อศิลปิน หรือ เพลง..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="พิมพ์ชื่อศิลปิน เพลง หรืออัลบั้มที่ต้องการค้นหา"
               required
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ประเภท
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-600">
+              ประเภทที่ต้องการค้นหา
             </label>
-            <select
+            <Select
+              size="large"
               value={searchEntity}
-              onChange={(e) => setSearchEntity(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="musicArtist">ศิลปิน</option>
-              <option value="song">เพลง</option>
-              <option value="album">อัลบั้ม</option>
-            </select>
+              onChange={setSearchEntity}
+              options={ENTITY_OPTIONS}
+              className="w-full"
+            />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
+          <Button
+            type="primary"
+            size="large"
+            icon={<SearchOutlined />}
+            htmlType="submit"
+            loading={loading}
+            className="md:col-span-2"
           >
-            {loading ? 'กำลังค้นหา...' : 'ค้นหา'}
-          </button>
-        </div>
-      </form>
+            {loading ? 'กำลังค้นหาข้อมูล...' : 'ค้นหา'}
+          </Button>
+        </form>
+      </Card>
 
       {results.length > 0 && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-semibold">ผลการค้นหา ({results.length})</h2>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {results.map((item, index) => (
-              <div key={index} className="p-4 hover:bg-gray-50 flex items-center gap-4">
-                {item.artworkUrl100 && (
-                  <img
-                    src={item.artworkUrl100}
-                    alt={item.artistName || item.trackName}
-                    className="w-20 h-20 rounded object-cover"
-                  />
-                )}
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900">
-                    {item.artistName || item.collectionName}
-                  </div>
-                  {item.trackName && (
-                    <div className="text-sm text-gray-600">{item.trackName}</div>
-                  )}
-                  {item.collectionName && searchEntity === 'musicArtist' && (
-                    <div className="text-sm text-gray-500">{item.primaryGenreName}</div>
-                  )}
-                </div>
-                {searchEntity === 'musicArtist' && item.artistId && (
-                  <button
-                    onClick={() => handleSaveArtist(item)}
-                    disabled={saving === item.artistId}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {saving === item.artistId ? 'กำลังบันทึก...' : 'บันทึก'}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card
+          title={
+            <div className="flex items-center justify-between">
+              <span className="text-slate-800">
+                พบผลลัพธ์ทั้งหมด {results.length} รายการ
+              </span>
+              <Tag color="processing" className="!rounded-full !px-4 !py-1">
+                {ENTITY_OPTIONS.find((option) => option.value === searchEntity)?.label}
+              </Tag>
+            </div>
+          }
+          className="glass-surface border-none bg-white/90"
+        >
+          <List
+            itemLayout="horizontal"
+            dataSource={results}
+            renderItem={(item: any) => (
+              <List.Item
+                className="rounded-2xl border border-slate-200/60 bg-white/70 p-4"
+                actions={
+                  showSaveButton(item)
+                    ? [
+                        <Button
+                          key="save"
+                          type="primary"
+                          icon={<SaveOutlined />}
+                          onClick={() => handleSaveArtist(item)}
+                          loading={saving === item.artistId}
+                          className="bg-emerald-500 shadow-sm shadow-emerald-500/30 hover:bg-emerald-600"
+                        >
+                          {saving === item.artistId
+                            ? 'กำลังบันทึก...'
+                            : 'บันทึกศิลปิน'}
+                        </Button>,
+                      ]
+                    : undefined
+                }
+              >
+                <List.Item.Meta
+                  avatar={
+                    item.artworkUrl100 ? (
+                      <Avatar
+                        src={item.artworkUrl100}
+                        size={80}
+                        shape="square"
+                        className="rounded-2xl border border-slate-200/70 shadow-md"
+                      />
+                    ) : (
+                      <Avatar
+                        size={80}
+                        shape="square"
+                        className="rounded-2xl bg-indigo-500 text-lg font-semibold text-white"
+                      >
+                        {item.artistName?.slice(0, 2) || 'dY'}
+                      </Avatar>
+                    )
+                  }
+                  title={
+                    <div className="flex flex-col gap-1">
+                      <span className="text-base font-semibold text-slate-900">
+                        {item.artistName || item.collectionName || 'ไม่พบชื่อ'}
+                      </span>
+                      {item.trackName && (
+                        <Text className="text-sm text-slate-500">{item.trackName}</Text>
+                      )}
+                    </div>
+                  }
+                  description={
+                    <div className="space-y-1 text-xs text-slate-500">
+                      {item.primaryGenreName && (
+                        <div>แนวเพลง: {item.primaryGenreName}</div>
+                      )}
+                      {item.artistLinkUrl && (
+                        <div className="truncate">
+                          ลิงก์ต้นทาง:{' '}
+                          <a
+                            href={item.artistLinkUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-500 hover:underline"
+                          >
+                            {item.artistLinkUrl}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
+
+      {!loading && results.length === 0 && searchTerm && (
+        <Card className="glass-surface border-none bg-white/90">
+          <Empty
+            description={`ไม่พบผลลัพธ์สำหรับ "${searchTerm}"`}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        </Card>
       )}
     </div>
   )
 }
+

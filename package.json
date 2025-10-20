@@ -23,9 +23,12 @@
   },
   "homepage": "https://github.com/Khaojees/guitar-content-tracker#readme",
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
+    "@ant-design/nextjs-registry": "^1.1.0",
     "@prisma/client": "^6.17.1",
     "@types/node": "^24.9.0",
     "@types/react": "^19.2.2",
+    "antd": "^5.27.6",
     "next": "^15.5.6",
     "prisma": "^6.17.1",
     "react": "^19.2.0",
@@ -33,9 +36,10 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.15",
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.15"
+    "tailwindcss": "^3.4.18"
   }
 }
