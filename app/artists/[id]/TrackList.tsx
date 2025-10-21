@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { App, Button, Tag, Tooltip } from 'antd'
+import { useMemo, useState } from 'react'
+import { App, Button, Tooltip, Empty, Tag } from 'antd'
 import {
   DeleteOutlined,
   StarOutlined,
@@ -10,67 +10,128 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
+import type { Prisma } from '@prisma/client'
 
-type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
+export type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
 
-type Track = {
-  id: number
-  name: string
-  duration: number | null
-  trackNumber: number | null
-  trackStatus: {
-    status: TrackStatusKey
-    starred: boolean
-  } | null
-}
-
-const STATUS_THEME: Record<
-  TrackStatusKey,
-  { label: string; helper: string; active: string; inactive: string }
-> = {
-  idea: {
-    label: 'Idea',
-    helper: 'เพิ่งจดไว้ ต้องกลับมาพัฒนาต่อ',
-    active: 'bg-slate-900 text-white',
-    inactive: 'bg-slate-100 text-slate-600',
-  },
-  ready: {
-    label: 'Ready',
-    helper: 'พร้อมซ้อมหรืออัดจริงแล้ว',
-    active: 'bg-sky-600 text-white',
-    inactive: 'bg-sky-100 text-sky-700',
-  },
-  recorded: {
-    label: 'Recorded',
-    helper: 'อัดเสียงหรือวิดีโอเสร็จแล้ว',
-    active: 'bg-amber-500 text-white',
-    inactive: 'bg-amber-100 text-amber-600',
-  },
-  posted: {
-    label: 'Posted',
-    helper: 'โพสต์คอนเทนต์เรียบร้อย',
-    active: 'bg-emerald-500 text-white',
-    inactive: 'bg-emerald-100 text-emerald-600',
-  },
-}
-
-const STATUS_KEYS: TrackStatusKey[] = ['idea', 'ready', 'recorded', 'posted']
+type TrackWithStatus = Prisma.TrackGetPayload<{
+  include: {
+    trackStatus: true
+  }
+}>
 
 type TrackStatusState = { status: TrackStatusKey; starred: boolean }
 
-export default function TrackList({ tracks }: { tracks: Track[] }) {
+type TrackListProps = {
+  tracks: TrackWithStatus[]
+  layout?: 'default' | 'compact'
+}
+
+const STATUS_CONFIG: Record<
+  TrackStatusKey,
+  {
+    label: string
+    helper: string
+    pillClass: string
+    buttonActive: string
+    buttonInactive: string
+  }
+> = {
+  idea: {
+    label: 'ไอเดีย',
+    helper:
+      'เก็บคอนเซปต์และรายละเอียดไว้ก่อน ยังไม่ได้ลงมือผลิตคอนเทนต์จริงจัง',
+    pillClass: 'bg-slate-100 text-slate-600',
+    buttonActive: '!bg-slate-900 !text-white !shadow-sm',
+    buttonInactive:
+      '!bg-slate-50 !text-slate-600 hover:!bg-slate-100 hover:!text-slate-700',
+  },
+  ready: {
+    label: 'พร้อมทำงาน',
+    helper:
+      'เตรียมข้อมูลครบแล้ว พร้อมลงมือผลิต เช่น เนื้อร้อง แผนโพสต์ หรือชุดฟุตเทจ',
+    pillClass: 'bg-sky-100 text-sky-700',
+    buttonActive: '!bg-sky-500 !text-white !shadow-sm',
+    buttonInactive:
+      '!bg-sky-50 !text-sky-600 hover:!bg-sky-100 hover:!text-sky-700',
+  },
+  recorded: {
+    label: 'อัดแล้ว',
+    helper:
+      'อัดเสียงหรือวิดีโอเสร็จแล้ว กำลังมิกซ์ ตัดต่อ หรือเตรียมปล่อยคอนเทนต์',
+    pillClass: 'bg-amber-100 text-amber-700',
+    buttonActive: '!bg-amber-500 !text-white !shadow-sm',
+    buttonInactive:
+      '!bg-amber-50 !text-amber-600 hover:!bg-amber-100 hover:!text-amber-700',
+  },
+  posted: {
+    label: 'เผยแพร่แล้ว',
+    helper:
+      'ปล่อยคอนเทนต์เรียบร้อยแล้ว สามารถติดตามผลและเก็บสถิติได้ทันที',
+    pillClass: 'bg-emerald-100 text-emerald-700',
+    buttonActive: '!bg-emerald-500 !text-white !shadow-sm',
+    buttonInactive:
+      '!bg-emerald-50 !text-emerald-600 hover:!bg-emerald-100 hover:!text-emerald-700',
+  },
+}
+
+export const STATUS_KEYS: TrackStatusKey[] = ['idea', 'ready', 'recorded', 'posted']
+
+export const isTrackStatusKey = (
+  value: string | null | undefined
+): value is TrackStatusKey => (STATUS_KEYS as readonly string[]).includes(value ?? '')
+
+const EMPTY_DESCRIPTION = 'ยังไม่มีเพลงที่ตรงกับตัวกรองในอัลบัมนี้'
+
+const ERROR_MESSAGE = {
+  updateStatus: 'ไม่สามารถอัปเดตสถานะเพลงได้ กรุณาลองใหม่อีกครั้ง',
+  updateStatusRequest: 'เกิดข้อผิดพลาดระหว่างอัปเดตสถานะเพลง',
+  toggleStar: 'ไม่สามารถเปลี่ยนสถานะติดดาวได้ กรุณาลองใหม่อีกครั้ง',
+  toggleStarRequest: 'เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะติดดาว',
+  deleteTrack: 'ไม่สามารถลบเพลงได้ กรุณาลองใหม่อีกครั้ง',
+  deleteTrackRequest: 'เกิดข้อผิดพลาดระหว่างลบเพลง',
+}
+
+const TOOLTIP_STAR = {
+  active: 'เพลงนี้ถูกปักหมุดเป็นเพลงสำคัญแล้ว',
+  inactive: 'ปักหมุดเพลงนี้เป็นเพลงสำคัญ',
+}
+
+const TOOLTIP_DELETE = 'ลบเพลงนี้ออกจากอัลบัม'
+
+const STATUS_BUTTON_BASE =
+  '!border-none !px-4 !py-1 !text-xs !font-semibold rounded-full transition-all duration-150'
+
+export default function TrackList({ tracks, layout = 'default' }: TrackListProps) {
   const router = useRouter()
   const { modal, message: messageApi } = App.useApp()
   const [trackStatuses, setTrackStatuses] = useState<Record<number, TrackStatusState>>(
     Object.fromEntries(
       tracks.map((track) => {
-        const status = (track.trackStatus?.status as TrackStatusKey) || 'idea'
+        const status = isTrackStatusKey(track.trackStatus?.status)
+          ? track.trackStatus.status
+          : 'idea'
         const starred = Boolean(track.trackStatus?.starred)
         return [track.id, { status, starred }] as const
       })
     )
   )
   const [deletingTrack, setDeletingTrack] = useState<number | null>(null)
+
+  const containerClass = layout === 'compact' ? 'space-y-2' : 'space-y-4'
+  const cardPadding = layout === 'compact' ? 'p-3 sm:p-4' : 'p-5'
+  const helperVisible = layout !== 'compact'
+
+  const emptyContent = useMemo(
+    () => (
+      <Empty
+        description={EMPTY_DESCRIPTION}
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        className="py-8"
+      />
+    ),
+    []
+  )
 
   const updateStatus = async (trackId: number, newStatus: TrackStatusKey) => {
     try {
@@ -80,20 +141,22 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
         body: JSON.stringify({ status: newStatus }),
       })
 
-      if (response.ok) {
-        setTrackStatuses((prev) => ({
-          ...prev,
-          [trackId]: {
-            ...(prev[trackId] ?? { status: newStatus, starred: false }),
-            status: newStatus,
-          },
-        }))
-      } else {
-        messageApi.error('ไม่สามารถอัปเดตสถานะเพลงได้')
+      if (!response.ok) {
+        messageApi.error(ERROR_MESSAGE.updateStatus)
+        return
       }
+
+      setTrackStatuses((prev) => ({
+        ...prev,
+        [trackId]: {
+          ...(prev[trackId] ?? { status: newStatus, starred: false }),
+          status: newStatus,
+        },
+      }))
+      router.refresh()
     } catch (error) {
       console.error('Update status error:', error)
-      messageApi.error('เกิดข้อผิดพลาดในการเปลี่ยนสถานะเพลง')
+      messageApi.error(ERROR_MESSAGE.updateStatusRequest)
     }
   }
 
@@ -107,53 +170,50 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
         body: JSON.stringify({ starred: !currentStarred }),
       })
 
-      if (response.ok) {
-        setTrackStatuses((prev) => ({
-          ...prev,
-          [trackId]: {
-            ...(prev[trackId] ?? { status: 'idea', starred: !currentStarred }),
-            starred: !currentStarred,
-          },
-        }))
-      } else {
-        messageApi.error('ไม่สามารถปักหมุดเพลงได้')
+      if (!response.ok) {
+        messageApi.error(ERROR_MESSAGE.toggleStar)
+        return
       }
+
+      setTrackStatuses((prev) => ({
+        ...prev,
+        [trackId]: {
+          ...(prev[trackId] ?? { status: 'idea', starred: !currentStarred }),
+          starred: !currentStarred,
+        },
+      }))
+      router.refresh()
     } catch (error) {
       console.error('Toggle star error:', error)
-      messageApi.error('เกิดข้อผิดพลาดในการปักหมุดเพลง')
+      messageApi.error(ERROR_MESSAGE.toggleStarRequest)
     }
   }
 
-  const handleDeleteClick = (track: Track) => {
+  const handleDeleteClick = (track: TrackWithStatus) => {
     const status = trackStatuses[track.id]?.status ?? 'idea'
-    const isImportant = status === 'recorded' || status === 'posted'
+    const starred = trackStatuses[track.id]?.starred ?? false
+
+    const statusLabel = STATUS_CONFIG[status].label
+    const starredLabel = starred
+      ? 'เพลงนี้ถูกปักหมุดเป็นเพลงสำคัญ'
+      : 'เพลงนี้ยังไม่ได้ปักหมุด'
 
     modal.confirm({
-      title: isImportant ? 'ลบเพลงที่อยู่ในสถานะสำคัญ' : 'ต้องการลบเพลงนี้หรือไม่?',
-      icon: (
-        <ExclamationCircleOutlined
-          className={isImportant ? 'text-amber-500' : 'text-slate-500'}
-        />
-      ),
+      title: `ยืนยันการลบเพลง (${statusLabel})`,
+      icon: <ExclamationCircleOutlined className="text-amber-500" />,
       content: (
-        <div className="space-y-3">
-          <p className="font-semibold text-slate-800">
-            เพลง <span className="text-indigo-600">"{track.name}"</span>{' '}
-            อยู่ในสถานะ{' '}
-            <Tag
-              className="!mt-1 !rounded-full !px-2.5 !py-0.5 text-xs font-semibold uppercase"
-              color={isImportant ? 'gold' : 'blue'}
-            >
-              {STATUS_THEME[status].label}
-            </Tag>
+        <div className="space-y-2 text-sm text-slate-600">
+          <p>
+            <span className="font-semibold text-slate-900">{track.name}</span>
+            <br />
+            {starredLabel}
           </p>
-          <p className="text-sm text-slate-600">
-            เมื่อลบแล้วข้อมูลสถานะและโพสต์ที่เกี่ยวข้องกับเพลงนี้จะถูกลบถาวร
-            โปรดยืนยันก่อนดำเนินการ
+          <p>
+            เมื่อลบแล้วข้อมูลสถานะ ความคืบหน้า และบันทึกทั้งหมดของเพลงนี้จะถูกลบถาวร
           </p>
         </div>
       ),
-      okText: 'ลบเพลงออกจากระบบ',
+      okText: 'ลบเพลง',
       cancelText: 'ยกเลิก',
       okButtonProps: { danger: true, loading: deletingTrack === track.id },
       onOk: () => deleteTrack(track.id),
@@ -167,29 +227,34 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
         method: 'DELETE',
       })
 
-      if (response.ok) {
-        messageApi.success('ลบเพลงออกจากระบบเรียบร้อยแล้ว')
-        router.refresh()
-      } else {
-        messageApi.error('ไม่สามารถลบเพลงได้ กรุณาลองใหม่อีกครั้ง')
+      if (!response.ok) {
+        messageApi.error(ERROR_MESSAGE.deleteTrack)
+        return
       }
+
+      messageApi.success('ลบเพลงเรียบร้อยแล้ว')
+      router.refresh()
     } catch (error) {
       console.error('Delete track error:', error)
-      messageApi.error('เกิดข้อผิดพลาดในการลบเพลง')
+      messageApi.error(ERROR_MESSAGE.deleteTrackRequest)
     } finally {
       setDeletingTrack(null)
     }
   }
 
   const formatDuration = (ms: number | null) => {
-    if (!ms) return '—'
+    if (!ms) return '-'
     const minutes = Math.floor(ms / 60000)
     const seconds = Math.floor((ms % 60000) / 1000)
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
+  if (tracks.length === 0) {
+    return emptyContent
+  }
+
   return (
-    <div className="space-y-4">
+    <div className={containerClass}>
       {tracks.map((track) => {
         const status = trackStatuses[track.id]?.status ?? 'idea'
         const starred = trackStatuses[track.id]?.starred ?? false
@@ -197,9 +262,9 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
         return (
           <div
             key={track.id}
-            className="rounded-2xl border border-slate-200/70 bg-white/85 p-5 shadow-sm transition-all duration-200 hover:-translate-y-[2px] hover:border-indigo-200 hover:shadow-xl"
+            className={`rounded-2xl border border-slate-200/70 bg-white/90 ${cardPadding} shadow-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-indigo-200 hover:shadow-lg`}
           >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-3">
                   {track.trackNumber && (
@@ -207,13 +272,9 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
                       {track.trackNumber}
                     </span>
                   )}
-                  <h4 className="text-lg font-semibold text-slate-900">{track.name}</h4>
+                  <h4 className="text-base font-semibold text-slate-900">{track.name}</h4>
                   <Tooltip
-                    title={
-                      starred
-                        ? 'นำออกจากเพลงที่ปักหมุด'
-                        : 'ปักหมุดเป็นเพลงสำคัญ'
-                    }
+                    title={starred ? TOOLTIP_STAR.active : TOOLTIP_STAR.inactive}
                   >
                     <Button
                       type="text"
@@ -230,33 +291,42 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
                   </Tooltip>
                   <Tag
                     icon={<ClockCircleOutlined />}
-                    className="!ml-1 !rounded-full !px-3 !py-1 !text-sm"
+                    className="!ml-1 !rounded-full !px-3 !py-1 !text-xs"
                   >
                     {formatDuration(track.duration)}
                   </Tag>
                 </div>
-                <p className="text-sm text-slate-500">
-                  {STATUS_THEME[status as TrackStatusKey].helper}
-                </p>
+                {helperVisible && (
+                  <p className="text-sm text-slate-500">
+                    {STATUS_CONFIG[status].helper}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {STATUS_KEYS.map((key) => {
+                  const config = STATUS_CONFIG[key]
                   const isActive = status === key
                   return (
-                    <Tag
+                    <Button
                       key={key}
-                      className={`!cursor-pointer !rounded-full !px-3 !py-1.5 !text-xs !font-semibold transition-all ${
-                        isActive ? STATUS_THEME[key].active : STATUS_THEME[key].inactive
+                      size="small"
+                      shape="round"
+                      className={`${STATUS_BUTTON_BASE} ${
+                        isActive ? config.buttonActive : config.buttonInactive
                       }`}
-                      onClick={() => updateStatus(track.id, key)}
+                      onClick={() => {
+                        if (!isActive) {
+                          updateStatus(track.id, key)
+                        }
+                      }}
                     >
-                      {STATUS_THEME[key].label}
-                    </Tag>
+                      {config.label}
+                    </Button>
                   )
                 })}
 
-                <Tooltip title="ลบเพลงออกจากระบบ">
+                <Tooltip title={TOOLTIP_DELETE}>
                   <Button
                     type="text"
                     danger
@@ -273,4 +343,3 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
     </div>
   )
 }
-

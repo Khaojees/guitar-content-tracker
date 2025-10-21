@@ -1,92 +1,124 @@
 'use client'
 
-import { useState } from 'react'
-import { App, Card, Button, Tag } from 'antd'
+import { useMemo, useState } from 'react'
+import Image from 'next/image'
+import { App, Card, Button } from 'antd'
 import {
   DeleteOutlined,
   ArrowLeftOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
+import type { Prisma } from '@prisma/client'
 
-type Artist = {
-  id: number
-  name: string
-  imageUrl: string | null
-  albums: {
-    tracks: {
-      id: number
-      name: string
-      trackStatus: {
-        status: 'idea' | 'ready' | 'recorded' | 'posted'
-      } | null
-    }[]
-  }[]
+type ArtistWithLibrary = Prisma.ArtistGetPayload<{
+  include: {
+    albums: {
+      include: {
+        tracks: {
+          include: {
+            trackStatus: true
+          }
+        }
+      }
+    }
+  }
+}>
+
+type Metric = {
+  key: 'albums' | 'tracks' | 'important'
+  label: string
+  color: 'sky' | 'indigo' | 'emerald'
 }
 
-export default function ArtistHeader({ artist }: { artist: Artist }) {
+const METRIC_DEFINITIONS: Metric[] = [
+  { key: 'albums', label: 'อัลบัมทั้งหมด', color: 'sky' },
+  { key: 'tracks', label: 'เพลงทั้งหมด', color: 'indigo' },
+  { key: 'important', label: 'เพลงสำคัญ', color: 'emerald' },
+]
+
+const METRIC_COLORS = {
+  sky: {
+    bg: 'bg-sky-50',
+    text: 'text-sky-600',
+  },
+  indigo: {
+    bg: 'bg-indigo-50',
+    text: 'text-indigo-600',
+  },
+  emerald: {
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-600',
+  },
+} as const
+
+export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) {
   const router = useRouter()
   const { modal, message } = App.useApp()
   const [deleting, setDeleting] = useState(false)
 
-  const importantTracks = artist.albums.flatMap((album) =>
-    album.tracks.filter(
-      (track) =>
-        track.trackStatus?.status === 'recorded' ||
-        track.trackStatus?.status === 'posted'
-    )
+  const importantTracks = useMemo(
+    () =>
+      artist.albums.flatMap((album) =>
+        album.tracks.filter((track) => {
+          const status = track.trackStatus?.status
+          return status === 'recorded' || status === 'posted'
+        })
+      ),
+    [artist.albums]
   )
 
+  const metrics = useMemo(() => {
+    const totals = {
+      albums: artist.albums.length,
+      tracks: artist.albums.reduce((sum, album) => sum + album.tracks.length, 0),
+      important: importantTracks.length,
+    }
+
+    return METRIC_DEFINITIONS.map((metric) => ({
+      ...metric,
+      value: totals[metric.key],
+    }))
+  }, [artist.albums, importantTracks.length])
+
   const confirmDelete = () => {
+    const baseOptions = {
+      icon: <ExclamationCircleOutlined className="text-amber-500" />,
+      okButtonProps: { danger: true, loading: deleting },
+      width: 600,
+      onOk: deleteArtist,
+    }
+
     if (importantTracks.length > 0) {
       modal.confirm({
-        title: 'ลบศิลปินที่มีเพลงสำคัญหรือไม่?',
-        icon: <ExclamationCircleOutlined className="text-amber-500" />,
+        ...baseOptions,
+        title: 'ต้องการลบศิลปินคนนี้หรือไม่?',
         content: (
-          <div className="space-y-3">
-            <p className="font-semibold text-slate-800">
-              ศิลปิน <span className="text-indigo-600">"{artist.name}"</span>{' '}
-              มีเพลงสำคัญ {importantTracks.length} เพลง:
+          <div className="space-y-3 text-sm text-slate-600">
+            <p>
+              ศิลปิน <span className="font-semibold text-slate-900">{artist.name}</span>{' '}
+              มีเพลงสำคัญอยู่ {importantTracks.length} เพลง หากลบข้อมูลจะหายทั้งหมด
             </p>
-            <ul className="max-h-48 list-disc space-y-1 overflow-y-auto pl-6 text-sm text-slate-600">
-              {importantTracks.map((track) => (
-                <li key={track.id} className="flex items-center gap-2">
-                  <span className="font-medium text-slate-900">{track.name}</span>
-                  <Tag
-                    color={track.trackStatus?.status === 'posted' ? 'success' : 'warning'}
-                    className="!rounded-full !px-2.5 !py-0.5 text-xs font-semibold uppercase"
-                  >
-                    {track.trackStatus?.status}
-                  </Tag>
-                </li>
-              ))}
-            </ul>
-            <p className="text-sm text-slate-600">
-              หากยืนยัน เพลงทั้งหมดของศิลปินนี้รวมถึงข้อมูลสถานะจะถูกลบถาวร
-              โปรดสำรองข้อมูลก่อนดำเนินการ
+            <p>
+              โปรดตรวจสอบให้แน่ใจก่อนดำเนินการ เพราะการลบนี้จะลบเพลง สถานะ
+              และบันทึกทุกอย่างที่เกี่ยวข้องกับศิลปินคนนี้
             </p>
           </div>
         ),
-        okText: 'ลบศิลปินและเพลงทั้งหมด',
+        okText: 'ลบศิลปินและข้อมูลทั้งหมด',
         cancelText: 'ยกเลิก',
-        okButtonProps: { danger: true, loading: deleting },
-        width: 620,
-        onOk: deleteArtist,
       })
     } else {
       modal.confirm({
-        title: 'ต้องการลบศิลปินนี้หรือไม่?',
-        icon: <ExclamationCircleOutlined />,
+        ...baseOptions,
+        title: 'ลบศิลปินออกจากระบบ',
         content: (
           <p className="text-sm text-slate-600">
-            ศิลปิน "{artist.name}" จะถูกลบพร้อมอัลบั้มและเพลงทั้งหมดจำนวน{' '}
-            {artist.albums.reduce((sum, album) => sum + album.tracks.length, 0)} เพลง
+            ศิลปิน {artist.name} ยังไม่มีเพลงสำคัญในระบบ หากลบแล้วสามารถเพิ่มใหม่ได้ในภายหลัง
           </p>
         ),
         okText: 'ลบศิลปิน',
         cancelText: 'ยกเลิก',
-        okButtonProps: { danger: true, loading: deleting },
-        onOk: deleteArtist,
       })
     }
   }
@@ -102,71 +134,83 @@ export default function ArtistHeader({ artist }: { artist: Artist }) {
         message.success('ลบศิลปินเรียบร้อยแล้ว')
         router.push('/artists')
       } else {
-        message.error('ไม่สามารถลบศิลปินได้ กรุณาลองใหม่')
+        message.error('ไม่สามารถลบศิลปินได้ กรุณาลองใหม่อีกครั้ง')
       }
     } catch (error) {
       console.error('Delete artist error:', error)
-      message.error('เกิดข้อผิดพลาดในการลบศิลปิน')
+      message.error('เกิดข้อผิดพลาดระหว่างลบศิลปิน')
     } finally {
       setDeleting(false)
     }
   }
 
   return (
-    <Card className="glass-surface border-none bg-white/90">
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
-        {artist.imageUrl && (
-          <img
-            src={artist.imageUrl}
-            alt={artist.name}
-            className="h-36 w-36 flex-none rounded-3xl object-cover shadow-lg shadow-indigo-500/20"
-          />
-        )}
-
-        <div className="flex-1 space-y-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
-                Artist Overview
-              </p>
-              <h2 className="text-2xl font-semibold text-slate-900">{artist.name}</h2>
-              <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                สรุปความคืบหน้าของเพลงและอัลบั้มทั้งหมดจากศิลปินรายนี้
-                เพื่อช่วยวางแผนคอนเทนต์ได้ง่ายและเห็นภาพรวมชัดเจน
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                icon={<ArrowLeftOutlined />}
-                onClick={() => router.push('/artists')}
-                className="rounded-full border-slate-200 px-4"
-              >
-                กลับหน้ารายชื่อศิลปิน
-              </Button>
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                loading={deleting}
-                onClick={confirmDelete}
-                className="rounded-full px-4"
-              >
-                ลบศิลปิน
-              </Button>
-            </div>
+    <Card className="glass-surface border-none bg-white/95">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-md shadow-indigo-500/10 sm:h-24 sm:w-24">
+            {artist.imageUrl ? (
+              <Image
+                src={artist.imageUrl}
+                alt={artist.name}
+                fill
+                sizes="(min-width: 640px) 96px, 80px"
+                className="rounded-2xl object-cover"
+              />
+            ) : (
+              <span className="text-3xl font-semibold text-slate-400">
+                {artist.name.slice(0, 1).toUpperCase()}
+              </span>
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Tag className="!rounded-full !bg-sky-100 !px-4 !py-1 !text-sm !font-semibold !text-sky-700">
-              อัลบั้ม {artist.albums.length}
-            </Tag>
-            <Tag className="!rounded-full !bg-indigo-100 !px-4 !py-1 !text-sm !font-semibold !text-indigo-700">
-              เพลงทั้งหมด{' '}
-              {artist.albums.reduce((sum, album) => sum + album.tracks.length, 0)}
-            </Tag>
-            <Tag className="!rounded-full !bg-emerald-100 !px-4 !py-1 !text-sm !font-semibold !text-emerald-700">
-              เพลงสำคัญ {importantTracks.length}
-            </Tag>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-400">
+                แผงข้อมูลศิลปิน
+              </p>
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600">
+                ID {artist.id}
+              </span>
+            </div>
+            <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">
+              {artist.name}
+            </h2>
+            <p className="max-w-2xl text-sm text-slate-600">
+              สรุปภาพรวมของเพลงและอัลบัมทั้งหมดของศิลปินคนนี้เพื่อช่วยวางแผนคอนเทนต์และติดตามความคืบหน้าได้ง่ายขึ้น
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 lg:flex-col lg:items-end">
+          <div className="flex gap-2">
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => router.push('/artists')}
+              className="rounded-full border-slate-200 px-4"
+            >
+              กลับไปรายชื่อศิลปิน
+            </Button>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              loading={deleting}
+              onClick={confirmDelete}
+              className="rounded-full px-4"
+            >
+              ลบศิลปิน
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
+            {metrics.map((metric) => (
+              <MetricPill
+                key={metric.key}
+                label={metric.label}
+                value={metric.value}
+                color={metric.color}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -174,3 +218,23 @@ export default function ArtistHeader({ artist }: { artist: Artist }) {
   )
 }
 
+function MetricPill({
+  label,
+  value,
+  color,
+}: {
+  label: string
+  value: number
+  color: 'sky' | 'indigo' | 'emerald'
+}) {
+  const palette = METRIC_COLORS[color]
+
+  return (
+    <div
+      className={`flex min-w-[110px] flex-col items-center justify-center rounded-2xl px-3 py-2 text-center shadow-sm ${palette.bg}`}
+    >
+      <span className="text-[11px] uppercase tracking-wider text-slate-500">{label}</span>
+      <span className={`text-lg font-semibold ${palette.text}`}>{value}</span>
+    </div>
+  )
+}

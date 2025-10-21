@@ -1,17 +1,27 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { StarFilled } from '@ant-design/icons'
+import { Table, Tag, Empty, Button } from 'antd'
+import { StarFilled, StarOutlined } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 
 export const dynamic = 'force-dynamic'
 
-const STATUS_BADGE: Record<
-  'idea' | 'ready' | 'recorded' | 'posted',
-  { label: string; className: string }
-> = {
-  idea: { label: 'Idea', className: 'bg-slate-100 text-slate-700' },
-  ready: { label: 'Ready', className: 'bg-sky-100 text-sky-700' },
-  recorded: { label: 'Recorded', className: 'bg-amber-100 text-amber-700' },
-  posted: { label: 'Posted', className: 'bg-emerald-100 text-emerald-700' },
+const STATUS_CONFIG = {
+  idea: { label: 'Idea', color: 'default' },
+  ready: { label: 'Ready', color: 'blue' },
+  recorded: { label: 'Recorded', color: 'orange' },
+  posted: { label: 'Posted', color: 'green' },
+}
+
+type TrackData = {
+  id: number
+  name: string
+  artistName: string
+  artistId: number
+  albumName: string
+  duration: number | null
+  status: keyof typeof STATUS_CONFIG
+  starred: boolean
 }
 
 export default async function TracksPage() {
@@ -36,88 +46,110 @@ export default async function TracksPage() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-slate-900">
-            เพลงทั้งหมดในคลังคอนเทนต์
-          </h1>
-          <p className="mt-2 max-w-3xl text-sm text-slate-600">
-            สำรวจเพลงทุกสถานะจากศิลปินทั้งหมด
-            พร้อมดูความยาวและอัลบั้มที่เกี่ยวข้องในมุมมองเดียว
-            ช่วยให้ตัดสินใจได้เร็วว่าควรโฟกัสเพลงใดต่อไป.
-          </p>
-        </div>
-        <span className="inline-flex rounded-full bg-indigo-100 px-5 py-2 text-sm font-semibold text-indigo-600">
-          รวมทั้งหมด {tracks.length} เพลง
+  const dataSource: TrackData[] = tracks.map((track) => ({
+    id: track.id,
+    name: track.name,
+    artistName: track.album.artist.name,
+    artistId: track.album.artist.id,
+    albumName: track.album.name,
+    duration: track.duration,
+    status: (track.trackStatus?.status as keyof typeof STATUS_CONFIG) || 'idea',
+    starred: track.trackStatus?.starred || false,
+  }))
+
+  const columns: ColumnsType<TrackData> = [
+    {
+      title: 'เพลง',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name, record) => (
+        <Link
+          href={`/artists/${record.artistId}`}
+          className="font-medium text-gray-900 hover:text-indigo-600"
+        >
+          {name}
+        </Link>
+      ),
+    },
+    {
+      title: 'ศิลปิน',
+      dataIndex: 'artistName',
+      key: 'artistName',
+      render: (text) => <span className="text-gray-600">{text}</span>,
+    },
+    {
+      title: 'อัลบั้ม',
+      dataIndex: 'albumName',
+      key: 'albumName',
+      render: (text) => <span className="text-gray-600">{text}</span>,
+    },
+    {
+      title: 'ความยาว',
+      dataIndex: 'duration',
+      key: 'duration',
+      render: (duration) => (
+        <span className="font-mono text-sm text-gray-600">
+          {formatDuration(duration)}
         </span>
+      ),
+    },
+    {
+      title: 'สถานะ',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: keyof typeof STATUS_CONFIG) => {
+        const config = STATUS_CONFIG[status]
+        return <Tag color={config.color}>{config.label}</Tag>
+      },
+    },
+    {
+      title: 'ปักหมุด',
+      dataIndex: 'starred',
+      key: 'starred',
+      align: 'center',
+      render: (starred) =>
+        starred ? (
+          <StarFilled className="text-lg text-yellow-500" />
+        ) : (
+          <StarOutlined className="text-lg text-gray-300" />
+        ),
+    },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">เพลงทั้งหมด</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          รวม {tracks.length} เพลง
+        </p>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 shadow-xl">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-              <th className="px-6 py-4">เพลง</th>
-              <th className="px-6 py-4">ศิลปิน</th>
-              <th className="px-6 py-4">อัลบั้ม</th>
-              <th className="px-6 py-4">ความยาว</th>
-              <th className="px-6 py-4">สถานะ</th>
-              <th className="px-6 py-4 text-center">ปักหมุด</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 bg-white/60 text-sm text-slate-700">
-            {tracks.map((track) => {
-              const statusKey =
-                (track.trackStatus?.status as keyof typeof STATUS_BADGE) || 'idea'
-              const badge = STATUS_BADGE[statusKey]
-
-              return (
-                <tr key={track.id} className="transition-colors hover:bg-indigo-50/50">
-                  <td className="px-6 py-4">
-                    <Link
-                      href={`/artists/${track.album.artist.id}`}
-                      className="font-semibold text-slate-900 transition-colors hover:text-indigo-600"
-                    >
-                      {track.name}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    {track.album.artist.name}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{track.album.name}</td>
-                  <td className="px-6 py-4 text-slate-600">
-                    {formatDuration(track.duration)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}
-                    >
-                      {badge.label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center text-lg text-amber-400">
-                    {track.trackStatus?.starred && <StarFilled />}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-
-        {tracks.length === 0 && (
-          <div className="space-y-4 p-16 text-center">
-            <p className="text-sm text-slate-500">ยังไม่มีเพลงในระบบ</p>
-            <Link
-              href="/search"
-              className="inline-flex items-center rounded-full bg-indigo-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-[1px] hover:bg-indigo-600"
-            >
-              ค้นหาเพลงเพื่อเริ่มต้น
+      {tracks.length === 0 ? (
+        <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white">
+          <div className="text-center">
+            <Empty description="ยังไม่มีเพลง" />
+            <Link href="/search">
+              <Button type="primary" className="mt-4">
+                เริ่มค้นหาเพลง
+              </Button>
             </Link>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <Table
+            dataSource={dataSource}
+            columns={columns}
+            rowKey="id"
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: false,
+              showTotal: (total) => `ทั้งหมด ${total} เพลง`,
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
-
