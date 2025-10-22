@@ -9,7 +9,7 @@ export async function POST(
     const { id } = await params
     const trackId = parseInt(id)
     const body = await request.json()
-    const { status, starred } = body
+    const { status, starred, ignored } = body
 
     if (!trackId) {
       return NextResponse.json({ error: 'Track ID is required' }, { status: 400 })
@@ -23,11 +23,13 @@ export async function POST(
       update: {
         ...(status !== undefined && { status }),
         ...(starred !== undefined && { starred }),
+        ...(ignored !== undefined && { ignored }),
       },
       create: {
         trackId: trackId,
         status: status || 'idea',
         starred: starred || false,
+        ignored: ignored || false,
       },
     })
 

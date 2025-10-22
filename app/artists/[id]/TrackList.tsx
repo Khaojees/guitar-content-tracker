@@ -1,13 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { App, Button, Tooltip, Empty, Tag } from 'antd'
+import { App, Button, Tooltip, Empty, Tag, Input } from 'antd'
 import {
   DeleteOutlined,
   StarOutlined,
   StarFilled,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 import type { Prisma } from '@prisma/client'
@@ -20,7 +22,7 @@ type TrackWithStatus = Prisma.TrackGetPayload<{
   }
 }>
 
-type TrackStatusState = { status: TrackStatusKey; starred: boolean }
+type TrackStatusState = { status: TrackStatusKey; starred: boolean; ignored: boolean }
 
 type TrackListProps = {
   tracks: TrackWithStatus[]
@@ -112,11 +114,13 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
           ? track.trackStatus.status
           : 'idea'
         const starred = Boolean(track.trackStatus?.starred)
-        return [track.id, { status, starred }] as const
+        const ignored = Boolean(track.trackStatus?.ignored)
+        return [track.id, { status, starred, ignored }] as const
       })
     )
   )
   const [deletingTrack, setDeletingTrack] = useState<number | null>(null)
+  const [showIgnored, setShowIgnored] = useState(false)
 
   const containerClass = layout === 'compact' ? 'space-y-2' : 'space-y-4'
   const cardPadding = layout === 'compact' ? 'p-3 sm:p-4' : 'p-5'
@@ -131,6 +135,12 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
       />
     ),
     []
+  )
+
+  const [trackNotes, setTrackNotes] = useState<Record<number, string>>(
+    Object.fromEntries(
+      tracks.map((track) => [track.id, track.note || ''] as const)
+    )
   )
 
   const updateStatus = async (trackId: number, newStatus: TrackStatusKey) => {
@@ -149,7 +159,7 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
       setTrackStatuses((prev) => ({
         ...prev,
         [trackId]: {
-          ...(prev[trackId] ?? { status: newStatus, starred: false }),
+          ...(prev[trackId] ?? { status: newStatus, starred: false, ignored: false }),
           status: newStatus,
         },
       }))
@@ -160,14 +170,82 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
     }
   }
 
-  const toggleStar = async (trackId: number) => {
-    const currentStarred = trackStatuses[trackId]?.starred ?? false
+  const toggleIgnored = async (trackId: number) => {
+    const currentIgnored = trackStatuses[trackId]?.ignored ?? false
+    const newIgnored = !currentIgnored
 
     try {
       const response = await fetch(`/api/track/${trackId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ starred: !currentStarred }),
+        body: JSON.stringify({
+          ignored: newIgnored,
+          ...(newIgnored && { starred: false }) // ถ้าติด ignored ให้ยกเลิก starred
+        }),
+      })
+
+      if (!response.ok) {
+        messageApi.error('ไม่สามารถเปลี่ยนสถานะไม่สนใจได้')
+        return
+      }
+
+      setTrackStatuses((prev) => ({
+        ...prev,
+        [trackId]: {
+          ...(prev[trackId] ?? { status: 'idea', starred: false, ignored: newIgnored }),
+          ignored: newIgnored,
+          ...(newIgnored && { starred: false })
+        },
+      }))
+      messageApi.success(
+        newIgnored
+          ? 'ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว'
+          : 'เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย'
+      )
+      router.refresh()
+    } catch (error) {
+      console.error('Toggle ignored error:', error)
+      messageApi.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะไม่สนใจ')
+    }
+  }
+
+  const updateNote = async (trackId: number, newNote: string) => {
+    try {
+      const response = await fetch(`/api/track/${trackId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: newNote }),
+      })
+
+      if (!response.ok) {
+        messageApi.error('ไม่สามารถอัปเดตโน้ตได้')
+        return
+      }
+
+      setTrackNotes((prev) => ({
+        ...prev,
+        [trackId]: newNote,
+      }))
+      messageApi.success('อัปเดตโน้ตเรียบร้อย')
+      router.refresh()
+    } catch (error) {
+      console.error('Update note error:', error)
+      messageApi.error('เกิดข้อผิดพลาดระหว่างอัปเดตโน้ต')
+    }
+  }
+
+  const toggleStar = async (trackId: number) => {
+    const currentStarred = trackStatuses[trackId]?.starred ?? false
+    const newStarred = !currentStarred
+
+    try {
+      const response = await fetch(`/api/track/${trackId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          starred: newStarred,
+          ...(newStarred && { ignored: false }) // ถ้าติด starred ให้ยกเลิก ignored
+        }),
       })
 
       if (!response.ok) {
@@ -178,8 +256,9 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
       setTrackStatuses((prev) => ({
         ...prev,
         [trackId]: {
-          ...(prev[trackId] ?? { status: 'idea', starred: !currentStarred }),
-          starred: !currentStarred,
+          ...(prev[trackId] ?? { status: 'idea', starred: newStarred, ignored: false }),
+          starred: newStarred,
+          ...(newStarred && { ignored: false })
         },
       }))
       router.refresh()
@@ -249,17 +328,37 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
+  const visibleTracks = useMemo(() => {
+    return tracks.filter((track) => {
+      const ignored = trackStatuses[track.id]?.ignored ?? false
+      return showIgnored ? true : !ignored
+    })
+  }, [tracks, trackStatuses, showIgnored])
+
   if (tracks.length === 0) {
     return emptyContent
   }
 
   return (
-    <div className={containerClass}>
-      {tracks.map((track) => {
-        const status = trackStatuses[track.id]?.status ?? 'idea'
-        const starred = trackStatuses[track.id]?.starred ?? false
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button
+          type={showIgnored ? 'primary' : 'default'}
+          icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+          onClick={() => setShowIgnored(!showIgnored)}
+          size="small"
+        >
+          {showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}
+        </Button>
+      </div>
 
-        return (
+      <div className={containerClass}>
+        {visibleTracks.map((track) => {
+          const status = trackStatuses[track.id]?.status ?? 'idea'
+          const starred = trackStatuses[track.id]?.starred ?? false
+          const ignored = trackStatuses[track.id]?.ignored ?? false
+
+          return (
           <div
             key={track.id}
             className={`rounded-2xl border border-slate-200/70 bg-white/90 ${cardPadding} shadow-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-indigo-200 hover:shadow-lg`}
@@ -301,6 +400,29 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
                     {STATUS_CONFIG[status].helper}
                   </p>
                 )}
+                <div className="mt-2">
+                  <Input.TextArea
+                    value={trackNotes[track.id] ?? ''}
+                    placeholder="เพิ่มโน้ตหรือไอเดียเสริม..."
+                    autoSize={{ minRows: 1, maxRows: 4 }}
+                    onChange={(e) => {
+                      setTrackNotes((prev) => ({
+                        ...prev,
+                        [track.id]: e.target.value,
+                      }))
+                    }}
+                    onBlur={(e) => {
+                      const originalNote = track.note || ''
+                      if (e.target.value !== originalNote) {
+                        updateNote(track.id, e.target.value)
+                      }
+                    }}
+                    onPressEnter={(e) => {
+                      e.currentTarget.blur()
+                    }}
+                    className="text-sm"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -326,6 +448,20 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
                   )
                 })}
 
+                <Tooltip title={ignored ? 'เปิดใช้งานเพลงนี้' : 'ไม่สนใจเพลงนี้'}>
+                  <Button
+                    type="text"
+                    icon={
+                      ignored ? (
+                        <EyeInvisibleOutlined className="text-gray-500" />
+                      ) : (
+                        <EyeOutlined className="text-gray-400" />
+                      )
+                    }
+                    onClick={() => toggleIgnored(track.id)}
+                  />
+                </Tooltip>
+
                 <Tooltip title={TOOLTIP_DELETE}>
                   <Button
                     type="text"
@@ -340,6 +476,7 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
           </div>
         )
       })}
+      </div>
     </div>
   )
 }

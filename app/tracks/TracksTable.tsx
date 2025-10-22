@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { App, Button, Empty, Input, Segmented, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { StarFilled, StarOutlined } from '@ant-design/icons'
+import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons'
 
 export type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
 
@@ -17,6 +17,8 @@ export type TrackRow = {
   duration: number | null
   status: TrackStatusKey
   starred: boolean
+  ignored: boolean
+  note: string
 }
 
 const STATUS_CONFIG: Record<
@@ -36,7 +38,7 @@ const STATUS_FILTERS = [
   { label: STATUS_CONFIG.recorded.label, value: 'recorded' },
   { label: STATUS_CONFIG.posted.label, value: 'posted' },
   { label: 'เพลงสำคัญ', value: 'starred' },
-] as const
+]
 
 const formatDuration = (ms: number | null) => {
   if (!ms) return '-'
@@ -52,13 +54,20 @@ type TracksTableProps = {
 export default function TracksTable({ tracks }: TracksTableProps) {
   const { message } = App.useApp()
   const [rows, setRows] = useState(tracks)
+  const savedNotesRef = useRef<Record<number, string>>(
+    Object.fromEntries(tracks.map((track) => [track.id, track.note || '']))
+  )
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<
     (typeof STATUS_FILTERS)[number]['value']
   >('all')
+  const [showIgnored, setShowIgnored] = useState(false)
 
   useEffect(() => {
     setRows(tracks)
+    savedNotesRef.current = Object.fromEntries(
+      tracks.map((track) => [track.id, track.note || ''])
+    )
   }, [tracks])
 
   const filteredTracks = useMemo(() => {
@@ -78,16 +87,22 @@ export default function TracksTable({ tracks }: TracksTableProps) {
           ? track.starred
           : track.status === statusFilter
 
-      return matchesSearch && matchesStatus
+      const matchesIgnored = showIgnored ? true : !track.ignored
+
+      return matchesSearch && matchesStatus && matchesIgnored
     })
-  }, [rows, searchTerm, statusFilter])
+  }, [rows, searchTerm, statusFilter, showIgnored])
 
   const toggleStar = async (track: TrackRow) => {
     try {
+      const newStarred = !track.starred
       const response = await fetch(`/api/track/${track.id}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ starred: !track.starred }),
+        body: JSON.stringify({
+          starred: newStarred,
+          ...(newStarred && { ignored: false }) // ถ้าติด starred ให้ยกเลิก ignored
+        }),
       })
 
       if (!response.ok) {
@@ -97,17 +112,80 @@ export default function TracksTable({ tracks }: TracksTableProps) {
 
       setRows((prev) =>
         prev.map((row) =>
-          row.id === track.id ? { ...row, starred: !track.starred } : row
+          row.id === track.id
+            ? { ...row, starred: newStarred, ...(newStarred && { ignored: false }) }
+            : row
         )
       )
       message.success(
-        !track.starred
+        newStarred
           ? 'ปักหมุดเพลงนี้เป็นเพลงสำคัญแล้ว'
           : 'เอาเพลงนี้ออกจากเพลงสำคัญเรียบร้อย'
       )
     } catch (error) {
       console.error('Toggle star error:', error)
       message.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะเพลงสำคัญ')
+    }
+  }
+
+  const toggleIgnored = async (track: TrackRow) => {
+    try {
+      const newIgnored = !track.ignored
+      const response = await fetch(`/api/track/${track.id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ignored: newIgnored,
+          ...(newIgnored && { starred: false }) // ถ้าติด ignored ให้ยกเลิก starred
+        }),
+      })
+
+      if (!response.ok) {
+        message.error('ไม่สามารถเปลี่ยนสถานะไม่สนใจได้')
+        return
+      }
+
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === track.id
+            ? { ...row, ignored: newIgnored, ...(newIgnored && { starred: false }) }
+            : row
+        )
+      )
+      message.success(
+        newIgnored
+          ? 'ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว'
+          : 'เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย'
+      )
+    } catch (error) {
+      console.error('Toggle ignored error:', error)
+      message.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะไม่สนใจ')
+    }
+  }
+
+  const updateNote = async (track: TrackRow, newNote: string) => {
+    try {
+      const response = await fetch(`/api/track/${track.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: newNote }),
+      })
+
+      if (!response.ok) {
+        message.error('ไม่สามารถอัปเดตโน้ตได้')
+        return
+      }
+
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === track.id ? { ...row, note: newNote } : row
+        )
+      )
+      savedNotesRef.current[track.id] = newNote
+      message.success('อัปเดตโน้ตเรียบร้อย')
+    } catch (error) {
+      console.error('Update note error:', error)
+      message.error('เกิดข้อผิดพลาดระหว่างอัปเดตโน้ต')
     }
   }
 
@@ -157,6 +235,41 @@ export default function TracksTable({ tracks }: TracksTableProps) {
       },
     },
     {
+      title: 'โน้ต',
+      dataIndex: 'note',
+      key: 'note',
+      width: 250,
+      render: (_, record) => {
+        const currentRow = rows.find(r => r.id === record.id)
+        const currentNote = currentRow?.note || ''
+        const savedNote = savedNotesRef.current[record.id] ?? ''
+
+        return (
+          <Input.TextArea
+            value={currentNote}
+            placeholder="เพิ่มโน้ต..."
+            autoSize={{ minRows: 1, maxRows: 3 }}
+            onChange={(e) => {
+              setRows((prev) =>
+                prev.map((row) =>
+                  row.id === record.id ? { ...row, note: e.target.value } : row
+                )
+              )
+            }}
+            onBlur={(e) => {
+              if (e.target.value !== savedNote) {
+                updateNote({ ...record, note: e.target.value }, e.target.value)
+              }
+            }}
+            onPressEnter={(e) => {
+              e.currentTarget.blur()
+            }}
+            className="text-sm"
+          />
+        )
+      },
+    },
+    {
       title: 'เพลงสำคัญ',
       dataIndex: 'starred',
       key: 'starred',
@@ -170,6 +283,25 @@ export default function TracksTable({ tracks }: TracksTableProps) {
               <StarFilled className="text-lg text-yellow-500" />
             ) : (
               <StarOutlined className="text-lg text-gray-300" />
+            )
+          }
+        />
+      ),
+    },
+    {
+      title: 'ไม่สนใจ',
+      dataIndex: 'ignored',
+      key: 'ignored',
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          type="text"
+          onClick={() => toggleIgnored(record)}
+          icon={
+            record.ignored ? (
+              <EyeInvisibleOutlined className="text-lg text-gray-500" />
+            ) : (
+              <EyeOutlined className="text-lg text-gray-300" />
             )
           }
         />
@@ -202,12 +334,21 @@ export default function TracksTable({ tracks }: TracksTableProps) {
           onChange={(event) => setSearchTerm(event.target.value)}
           className="md:max-w-md"
         />
-        <Segmented
-          options={STATUS_FILTERS}
-          value={statusFilter}
-          onChange={(value) => setStatusFilter(value as typeof statusFilter)}
-          size="middle"
-        />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type={showIgnored ? 'primary' : 'default'}
+            icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+            onClick={() => setShowIgnored(!showIgnored)}
+          >
+            {showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}
+          </Button>
+          <Segmented
+            options={STATUS_FILTERS}
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value as typeof statusFilter)}
+            size="middle"
+          />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg bg-white shadow">

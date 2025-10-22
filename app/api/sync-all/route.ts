@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
                     create: {
                       status: 'idea',
                       starred: false,
+                      ignored: false,
                     },
                   },
                 })),
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest) {
                     create: {
                       status: 'idea',
                       starred: false,
+                      ignored: false,
                     },
                   },
                 },

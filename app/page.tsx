@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { Card, Button, Alert, Statistic, Row, Col } from "antd";
-import { SyncOutlined, SearchOutlined, UserOutlined, ThunderboltOutlined, UnorderedListOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import {
+  SyncOutlined,
+  SearchOutlined,
+  UserOutlined,
+  ThunderboltOutlined,
+  UnorderedListOutlined,
+  CheckCircleOutlined,
+} from "@ant-design/icons";
 import Link from "next/link";
 
 type SyncResult =
@@ -18,10 +25,34 @@ type SyncResult =
   | { error: string };
 
 const QUICK_ACTIONS = [
-  { key: "search", href: "/search", title: "ค้นหาเพลง", icon: SearchOutlined, color: "bg-blue-500" },
-  { key: "artists", href: "/artists", title: "ศิลปิน", icon: UserOutlined, color: "bg-purple-500" },
-  { key: "tracks", href: "/tracks", title: "เพลงทั้งหมด", icon: UnorderedListOutlined, color: "bg-green-500" },
-  { key: "random", href: "/random", title: "สุ่มเพลง", icon: ThunderboltOutlined, color: "bg-orange-500" },
+  {
+    key: "search",
+    href: "/search",
+    title: "ค้นหาเพลง",
+    icon: SearchOutlined,
+    color: "bg-blue-500",
+  },
+  {
+    key: "artists",
+    href: "/artists",
+    title: "ศิลปิน",
+    icon: UserOutlined,
+    color: "bg-purple-500",
+  },
+  {
+    key: "tracks",
+    href: "/tracks",
+    title: "เพลงทั้งหมด",
+    icon: UnorderedListOutlined,
+    color: "bg-green-500",
+  },
+  {
+    key: "random",
+    href: "/random",
+    title: "สุ่มเพลง",
+    icon: ThunderboltOutlined,
+    color: "bg-orange-500",
+  },
 ];
 
 export default function HomePage() {
@@ -63,10 +94,14 @@ export default function HomePage() {
                 styles={{ body: { padding: 20 } }}
               >
                 <div className="flex flex-col items-center space-y-2 text-center">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${action.color} text-white`}>
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-lg ${action.color} text-white`}
+                  >
                     <Icon className="text-xl" />
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{action.title}</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {action.title}
+                  </span>
                 </div>
               </Card>
             </Link>
@@ -75,10 +110,11 @@ export default function HomePage() {
       </div>
 
       {/* Sync Section */}
-      <Card title="ซิงก์ Release Radar" extra={<SyncOutlined />}>
+      <Card title="ซิงก์เพลงใหม่" extra={<SyncOutlined />}>
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            ซิงก์เพลงใหม่จาก Spotify Release Radar เพื่อไม่พลาดเพลงที่ต้องทำคอนเทนต์
+            อัปเดตอัลบั้มและเพลงใหม่จากศิลปินที่คุณติดตามใน iTunes
+            เพื่อไม่พลาดเพลงที่ต้องทำคอนเทนต์
           </p>
 
           <Button
@@ -109,7 +145,7 @@ export default function HomePage() {
       </Card>
 
       {/* Info Section */}
-      <Card title="การใช้งาน">
+      {/* <Card title="การใช้งาน">
         <div className="space-y-3 text-sm text-gray-600">
           <div className="flex items-start space-x-2">
             <CheckCircleOutlined className="mt-0.5 text-indigo-600" />
@@ -124,7 +160,7 @@ export default function HomePage() {
             <span>ปักหมุดเพลงที่สำคัญและสุ่มเพื่อทำคอนเทนต์</span>
           </div>
         </div>
-      </Card>
+      </Card> */}
     </div>
   );
 }

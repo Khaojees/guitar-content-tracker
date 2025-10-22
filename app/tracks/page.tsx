@@ -27,6 +27,8 @@ export default async function TracksPage() {
     duration: track.duration,
     status: (track.trackStatus?.status as TrackStatusKey) || 'idea',
     starred: Boolean(track.trackStatus?.starred),
+    ignored: Boolean(track.trackStatus?.ignored),
+    note: track.note || '',
   }))
 
   return (

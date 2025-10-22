@@ -48,6 +48,7 @@ model Track {
   albumId   Int
   duration  Int?     // milliseconds
   trackNumber Int?
+  note      String?  // บันทึกรายละเอียดหรือไอเดียเสริม
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -65,6 +66,7 @@ model TrackStatus {
   trackId   Int      @unique
   status    String   @default("idea") // idea, ready, recorded, posted
   starred   Boolean  @default(false)
+  ignored   Boolean  @default(false) // ไม่สนใจ - เพลงที่เล่นไม่ได้หรือไม่มี intro ที่เหมาะ
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -73,6 +75,7 @@ model TrackStatus {
 
   @@index([status])
   @@index([starred])
+  @@index([ignored])
 }
 
 // บันทึกการโพสต์
