@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: artistName,
         imageUrl: imageUrl || null,
+        syncEnabled: true,
         sources: {
           create: {
             type: 'itunes_artist',
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
                   create: {
                     status: 'idea',
                     starred: false,
+                    ignored: false,
                   },
                 },
               })),

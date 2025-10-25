@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { App, Button, Empty, Input, Segmented, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons'
+import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined } from '@ant-design/icons'
 
 export type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
 
@@ -268,6 +268,21 @@ export default function TracksTable({ tracks }: TracksTableProps) {
           />
         )
       },
+    },
+    {
+      title: 'YouTube',
+      key: 'youtube',
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          type="text"
+          onClick={() => {
+            const searchQuery = `${record.name} ${record.artistName}`
+            window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`, '_blank')
+          }}
+          icon={<YoutubeOutlined className="text-lg text-red-500" />}
+        />
+      ),
     },
     {
       title: 'เพลงสำคัญ',

@@ -10,6 +10,7 @@ import {
   ExclamationCircleOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
+  YoutubeOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 import type { Prisma } from '@prisma/client'
@@ -27,6 +28,7 @@ type TrackStatusState = { status: TrackStatusKey; starred: boolean; ignored: boo
 type TrackListProps = {
   tracks: TrackWithStatus[]
   layout?: 'default' | 'compact'
+  artistName: string
 }
 
 const STATUS_CONFIG: Record<
@@ -104,7 +106,7 @@ const TOOLTIP_DELETE = 'ลบเพลงนี้ออกจากอัล�
 const STATUS_BUTTON_BASE =
   '!border-none !px-4 !py-1 !text-xs !font-semibold rounded-full transition-all duration-150'
 
-export default function TrackList({ tracks, layout = 'default' }: TrackListProps) {
+export default function TrackList({ tracks, layout = 'default', artistName }: TrackListProps) {
   const router = useRouter()
   const { modal, message: messageApi } = App.useApp()
   const [trackStatuses, setTrackStatuses] = useState<Record<number, TrackStatusState>>(
@@ -447,6 +449,17 @@ export default function TrackList({ tracks, layout = 'default' }: TrackListProps
                     </Button>
                   )
                 })}
+
+                <Tooltip title="ค้นหาใน YouTube">
+                  <Button
+                    type="text"
+                    icon={<YoutubeOutlined className="text-red-500" />}
+                    onClick={() => {
+                      const searchQuery = `${track.name} ${artistName}`
+                      window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`, '_blank')
+                    }}
+                  />
+                </Tooltip>
 
                 <Tooltip title={ignored ? 'เปิดใช้งานเพลงนี้' : 'ไม่สนใจเพลงนี้'}>
                   <Button

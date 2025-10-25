@@ -24,11 +24,8 @@ export default function NavBar() {
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-              G
-            </div>
-            <span className="text-lg font-semibold text-gray-900">Guitar Tracker</span>
+          <Link href="/" className="flex items-center">
+            <img src="/logo-landscape.svg" alt="Guitar Tracker" className="h-8" />
           </Link>
 
           <nav className="flex space-x-1">

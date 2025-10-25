@@ -45,7 +45,7 @@ const STATUS_BADGE_CLASS: Record<TrackStatusKey, string> = {
   posted: 'bg-emerald-100 text-emerald-700',
 }
 
-export default function ArtistAlbums({ albums }: { albums: AlbumWithTracks[] }) {
+export default function ArtistAlbums({ albums, artistName }: { albums: AlbumWithTracks[]; artistName: string }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -144,7 +144,7 @@ export default function ArtistAlbums({ albums }: { albums: AlbumWithTracks[] }) 
         key: album.id.toString(),
         label: header,
         children: filteredTracks.length ? (
-          <TrackList tracks={filteredTracks} layout="compact" />
+          <TrackList tracks={filteredTracks} layout="compact" artistName={artistName} />
         ) : (
           <div className="py-6">
             <Empty
@@ -155,7 +155,7 @@ export default function ArtistAlbums({ albums }: { albums: AlbumWithTracks[] }) 
         ),
       }
     })
-  }, [albums, statusFilter, searchTerm])
+  }, [albums, statusFilter, searchTerm, artistName])
 
   const defaultActiveKeys = useMemo(
     () => albums.slice(0, 2).map((album) => album.id.toString()),

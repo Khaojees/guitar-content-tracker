@@ -7,6 +7,7 @@ import {
   DeleteOutlined,
   ArrowLeftOutlined,
   ExclamationCircleOutlined,
+  SyncOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 import type { Prisma } from '@prisma/client'
@@ -56,6 +57,8 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
   const router = useRouter()
   const { modal, message } = App.useApp()
   const [deleting, setDeleting] = useState(false)
+  const [syncEnabled, setSyncEnabled] = useState<boolean>(artist.syncEnabled)
+  const [updatingSync, setUpdatingSync] = useState(false)
 
   const importantTracks = useMemo(
     () =>
@@ -80,6 +83,35 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
       value: totals[metric.key],
     }))
   }, [artist.albums, importantTracks.length])
+
+  const toggleSync = async () => {
+    const nextValue = !syncEnabled
+    setUpdatingSync(true)
+    try {
+      const response = await fetch(`/api/artist/${artist.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ syncEnabled: nextValue }),
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        setSyncEnabled(data.artist.syncEnabled)
+        message.success(
+          data.artist.syncEnabled
+            ? 'Automatic sync enabled for this artist'
+            : 'Automatic sync disabled for this artist'
+        )
+      } else {
+        message.error(data.error || 'Failed to update sync preference')
+      }
+    } catch (error) {
+      console.error('Update sync preference error:', error)
+      message.error('Unexpected error while updating sync preference')
+    } finally {
+      setUpdatingSync(false)
+    }
+  }
 
   const confirmDelete = () => {
     const baseOptions = {
@@ -190,6 +222,15 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
               className="rounded-full border-slate-200 px-4"
             >
               กลับไปรายชื่อศิลปิน
+            </Button>
+            <Button
+              icon={<SyncOutlined />}
+              onClick={toggleSync}
+              loading={updatingSync}
+              type={syncEnabled ? 'primary' : 'default'}
+              className="rounded-full px-4"
+            >
+              {syncEnabled ? 'Disable sync' : 'Enable sync'}
             </Button>
             <Button
               danger

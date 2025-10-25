@@ -41,7 +41,7 @@ export default async function ArtistDetailPage({
   return (
     <div className="space-y-8">
       <ArtistHeader artist={artist} />
-      <ArtistAlbums albums={artist.albums} />
+      <ArtistAlbums albums={artist.albums} artistName={artist.name} />
     </div>
   )
 }

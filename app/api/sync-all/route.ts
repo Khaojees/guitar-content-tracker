@@ -5,6 +5,9 @@ export async function POST(request: NextRequest) {
   try {
     // Get all artists with their iTunes IDs
     const artists = await prisma.artist.findMany({
+      where: {
+        syncEnabled: true,
+      },
       include: {
         sources: {
           where: {
