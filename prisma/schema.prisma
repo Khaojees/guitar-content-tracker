@@ -53,9 +53,10 @@ model Track {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  album       Album        @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  trackStatus TrackStatus?
-  sources     Source[]
+  album         Album          @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  trackStatus   TrackStatus?
+  sources       Source[]
+  playlistTracks PlaylistTrack[]
 
   @@index([albumId])
   @@index([name])
@@ -110,4 +111,33 @@ model Source {
 
   @@unique([type, externalId])
   @@index([type, externalId])
+}
+
+// Playlist
+model Playlist {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  playlistTracks PlaylistTrack[]
+
+  @@index([name])
+}
+
+// เพลงใน Playlist
+model PlaylistTrack {
+  id         Int      @id @default(autoincrement())
+  playlistId Int
+  trackId    Int
+  order      Int      @default(0) // ลำดับในเพลย์ลิสต์
+  createdAt  DateTime @default(now())
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, trackId])
+  @@index([playlistId])
+  @@index([trackId])
 }

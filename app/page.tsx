@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, Button } from "antd";
+import { useEffect, useState } from "react";
+import { Card, Button, Spin, Empty } from "antd";
 import {
   SyncOutlined,
   SearchOutlined,
@@ -9,6 +10,18 @@ import {
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
+import PlaylistCard from "./components/PlaylistCard";
+
+type Playlist = {
+  id: number;
+  name: string;
+  description: string | null;
+  playlistTracks: Array<{
+    track: {
+      duration: number | null;
+    };
+  }>;
+};
 
 const QUICK_ACTIONS = [
   {
@@ -42,6 +55,27 @@ const QUICK_ACTIONS = [
 ];
 
 export default function HomePage() {
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPlaylists();
+  }, []);
+
+  const fetchPlaylists = async () => {
+    try {
+      const response = await fetch("/api/playlist");
+      if (response.ok) {
+        const data = await response.json();
+        setPlaylists(data);
+      }
+    } catch (error) {
+      console.error("Error fetching playlists:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -74,6 +108,49 @@ export default function HomePage() {
           );
         })}
       </div>
+
+      <Card
+        title="Playlists ของฉัน"
+        extra={
+          <Link href="/playlists">
+            <Button type="link">ดูทั้งหมด</Button>
+          </Link>
+        }
+      >
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Spin size="large" />
+          </div>
+        ) : playlists.length === 0 ? (
+          <Empty
+            description="ยังไม่มี playlist"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          >
+            <Link href="/playlists">
+              <Button type="primary">สร้าง Playlist แรก</Button>
+            </Link>
+          </Empty>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {playlists.slice(0, 6).map((playlist) => {
+              const totalDuration = playlist.playlistTracks.reduce(
+                (sum, pt) => sum + (pt.track.duration || 0),
+                0
+              );
+              return (
+                <PlaylistCard
+                  key={playlist.id}
+                  id={playlist.id}
+                  name={playlist.name}
+                  description={playlist.description}
+                  trackCount={playlist.playlistTracks.length}
+                  totalDuration={totalDuration}
+                />
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       <Card title="Release Radar" extra={<SyncOutlined />}>
         <div className="space-y-4">

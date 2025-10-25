@@ -1,6 +1,6 @@
 'use client'
 
-import { HomeOutlined, SearchOutlined, UserOutlined, UnorderedListOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { HomeOutlined, SearchOutlined, UserOutlined, UnorderedListOutlined, ThunderboltOutlined, AppstoreOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { key: '/search', icon: SearchOutlined, label: 'ค้นหา' },
   { key: '/artists', icon: UserOutlined, label: 'ศิลปิน' },
   { key: '/tracks', icon: UnorderedListOutlined, label: 'เพลง' },
+  { key: '/playlists', icon: AppstoreOutlined, label: 'Playlists' },
   { key: '/random', icon: ThunderboltOutlined, label: 'สุ่ม' },
 ]
 
