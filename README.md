@@ -74,11 +74,11 @@
 | Component       | Technology                       |
 | --------------- | -------------------------------- |
 | **Framework**   | Next.js 15 (App Router)          |
-| **Database**    | SQLite (dev) → Turso/Neon (prod) |
+| **Database**    | PostgreSQL (Vercel Postgres)     |
 | **ORM**         | Prisma                           |
 | **UI**          | TailwindCSS + Ant Design         |
 | **API Sources** | iTunes Search API                |
-| **Deployment**  | localhost only                   |
+| **Deployment**  | Vercel                           |
 
 ---
 
@@ -230,5 +230,99 @@ imageUrl   starred note
 - ✅ UI ใช้ง่าย ไม่ต้อง overthink
 
 **Built by guitarist who codes** 🎸 × 💻
+
+---
+
+## 🚀 Deployment บน Vercel
+
+### Prerequisites
+- บัญชี [Vercel](https://vercel.com)
+- GitHub repository ของโปรเจกต์นี้
+
+### ขั้นตอน Deploy
+
+#### 1. สร้าง Vercel Postgres Database
+```bash
+# ไปที่ Vercel Dashboard → Storage → Create Database
+# เลือก Postgres
+# คัดลอก Environment Variables ที่ได้
+```
+
+#### 2. Import โปรเจกต์ใน Vercel
+```bash
+# ไปที่ Vercel Dashboard → New Project
+# Import จาก GitHub repository
+# เลือก guitar-content-tracker
+```
+
+#### 3. ตั้งค่า Environment Variables
+ใน Vercel Project Settings → Environment Variables เพิ่ม:
+```env
+DATABASE_URL=postgres://...  (จาก Vercel Postgres)
+DIRECT_URL=postgres://...    (จาก Vercel Postgres)
+```
+
+#### 4. Deploy
+```bash
+# Vercel จะ auto-deploy ทันทีที่ push code
+# หรือกด Deploy ใน Dashboard
+```
+
+#### 5. Database Setup (Auto)
+Build command ใน `vercel.json` จะรัน:
+- `prisma generate` — สร้าง Prisma Client
+- `prisma db push` — สร้างตารางใน database
+- `next build` — build Next.js
+
+### Local Development กับ Vercel Postgres
+
+```bash
+# 1. ติดตั้ง Vercel CLI
+npm i -g vercel
+
+# 2. Link โปรเจกต์
+vercel link
+
+# 3. Pull environment variables
+vercel env pull .env.local
+
+# 4. รัน development server
+npm run dev
+```
+
+### การสลับระหว่าง SQLite (dev) และ PostgreSQL (prod)
+
+**Development (SQLite):**
+```prisma
+// prisma/schema.prisma
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+```
+
+**Production (PostgreSQL):**
+```prisma
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+```
+
+### Troubleshooting
+
+**Build Failed:**
+- ตรวจสอบ `DATABASE_URL` และ `DIRECT_URL` ใน Environment Variables
+- ดู build logs ใน Vercel Dashboard
+
+**Database Connection Error:**
+- ตรวจสอบว่า Vercel Postgres database ยังทำงานอยู่
+- ลอง Redeploy
+
+**Migration Issues:**
+- ใช้ `prisma db push` แทน `prisma migrate` สำหรับ prototype
+- หรือสร้าง migrations ด้วย `prisma migrate dev` แล้ว commit
 
 ---
