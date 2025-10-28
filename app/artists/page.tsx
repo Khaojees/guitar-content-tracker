@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import ArtistCard from './ArtistCard'
+import ArtistsList from './ArtistsList'
 import Link from 'next/link'
 import { Empty, Button } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
@@ -52,39 +52,7 @@ export default async function ArtistsPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {artists.map((artist) => {
-            const totalTracks = artist.albums.reduce(
-              (sum, album) => sum + album.tracks.length,
-              0
-            )
-
-            const importantTracksCount = artist.albums.reduce((count, album) => {
-              return (
-                count +
-                album.tracks.filter(
-                  (track) =>
-                    track.trackStatus?.status === 'recorded' ||
-                    track.trackStatus?.status === 'posted'
-                ).length
-              )
-            }, 0)
-
-            return (
-              <ArtistCard
-                key={artist.id}
-                artist={{
-                  id: artist.id,
-                  name: artist.name,
-                  imageUrl: artist.imageUrl,
-                  albumsCount: artist.albums.length,
-                  tracksCount: totalTracks,
-                  importantTracksCount,
-                }}
-              />
-            )
-          })}
-        </div>
+        <ArtistsList artists={artists} />
       )}
     </div>
   )
