@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Input, Segmented, Empty } from 'antd'
+import { useRouter } from 'next/navigation'
+import { Input, Segmented, Empty, Pagination } from 'antd'
 import ArtistCard from './ArtistCard'
 import type { Prisma } from '@prisma/client'
 
@@ -25,54 +26,74 @@ const FILTER_OPTIONS = [
   { label: 'ทั้งหมด', value: 'all' },
   { label: 'เปิด Sync', value: 'synced' },
   { label: 'ปิด Sync', value: 'notSynced' },
-  { label: 'มีเพลงสำคัญ', value: 'hasImportant' },
+  { label: 'มีเพลงติดดาว', value: 'hasImportant' },
 ]
 
-export default function ArtistsList({ artists }: { artists: ArtistWithCounts[] }) {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filter, setFilter] = useState<FilterType>('all')
+type ArtistsListProps = {
+  artists: ArtistWithCounts[]
+  currentPage: number
+  totalPages: number
+  totalCount: number
+  searchTerm: string
+  filter: string
+}
 
+export default function ArtistsList({
+  artists,
+  currentPage,
+  totalPages,
+  totalCount,
+  searchTerm: initialSearchTerm,
+  filter: initialFilter
+}: ArtistsListProps) {
+  const router = useRouter()
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
+  const [filter, setFilter] = useState<FilterType>(initialFilter as FilterType)
+
+  // Filter "hasImportant" locally since it requires complex calculation
   const filteredArtists = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (filter !== 'hasImportant') {
+      return artists
+    }
 
     return artists.filter((artist) => {
-      // Search filter
-      const matchesSearch = normalizedSearch
-        ? artist.name.toLowerCase().includes(normalizedSearch)
-        : true
-
-      // Calculate stats
-      const totalTracks = artist.albums.reduce(
-        (sum, album) => sum + album.tracks.length,
-        0
-      )
-
       const importantTracksCount = artist.albums.reduce((count, album) => {
         return (
           count +
           album.tracks.filter(
-            (track) =>
-              track.trackStatus?.status === 'recorded' ||
-              track.trackStatus?.status === 'posted'
+            (track) => track.trackStatus?.starred === true
           ).length
         )
       }, 0)
 
-      // Filter by type
-      const matchesFilter =
-        filter === 'all'
-          ? true
-          : filter === 'synced'
-          ? artist.syncEnabled
-          : filter === 'notSynced'
-          ? !artist.syncEnabled
-          : filter === 'hasImportant'
-          ? importantTracksCount > 0
-          : true
-
-      return matchesSearch && matchesFilter
+      return importantTracksCount > 0
     })
-  }, [artists, searchTerm, filter])
+  }, [artists, filter])
+
+  const handleSearch = (value: string) => {
+    const params = new URLSearchParams()
+    if (value) params.set('search', value)
+    if (filter !== 'all') params.set('filter', filter)
+    params.set('page', '1')
+    router.push(`/artists?${params.toString()}`)
+  }
+
+  const handleFilterChange = (value: FilterType) => {
+    setFilter(value)
+    const params = new URLSearchParams()
+    if (searchTerm) params.set('search', searchTerm)
+    if (value !== 'all' && value !== 'hasImportant') params.set('filter', value)
+    params.set('page', '1')
+    router.push(`/artists?${params.toString()}`)
+  }
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams()
+    if (searchTerm) params.set('search', searchTerm)
+    if (filter !== 'all' && filter !== 'hasImportant') params.set('filter', filter)
+    params.set('page', page.toString())
+    router.push(`/artists?${params.toString()}`)
+  }
 
   return (
     <div className="space-y-4">
@@ -82,13 +103,14 @@ export default function ArtistsList({ artists }: { artists: ArtistWithCounts[] }
           allowClear
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onSearch={handleSearch}
           className="w-full md:max-w-md"
         />
         <div className="overflow-x-auto">
           <Segmented
             options={FILTER_OPTIONS}
             value={filter}
-            onChange={(value) => setFilter(value as FilterType)}
+            onChange={(value) => handleFilterChange(value as FilterType)}
             size="small"
           />
         </div>
@@ -99,39 +121,54 @@ export default function ArtistsList({ artists }: { artists: ArtistWithCounts[] }
           <Empty description="ไม่พบศิลปินที่ตรงกับการค้นหา" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredArtists.map((artist) => {
-            const totalTracks = artist.albums.reduce(
-              (sum, album) => sum + album.tracks.length,
-              0
-            )
-
-            const importantTracksCount = artist.albums.reduce((count, album) => {
-              return (
-                count +
-                album.tracks.filter(
-                  (track) =>
-                    track.trackStatus?.status === 'recorded' ||
-                    track.trackStatus?.status === 'posted'
-                ).length
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredArtists.map((artist) => {
+              const totalTracks = artist.albums.reduce(
+                (sum, album) => sum + album.tracks.length,
+                0
               )
-            }, 0)
 
-            return (
-              <ArtistCard
-                key={artist.id}
-                artist={{
-                  id: artist.id,
-                  name: artist.name,
-                  imageUrl: artist.imageUrl,
-                  albumsCount: artist.albums.length,
-                  tracksCount: totalTracks,
-                  importantTracksCount,
-                }}
+              const importantTracksCount = artist.albums.reduce((count, album) => {
+                return (
+                  count +
+                  album.tracks.filter(
+                    (track) => track.trackStatus?.starred === true
+                  ).length
+                )
+              }, 0)
+
+              return (
+                <ArtistCard
+                  key={artist.id}
+                  artist={{
+                    id: artist.id,
+                    name: artist.name,
+                    imageUrl: artist.imageUrl,
+                    albumsCount: artist.albums.length,
+                    tracksCount: totalTracks,
+                    importantTracksCount,
+                  }}
+                />
+              )
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center pt-4">
+              <Pagination
+                current={currentPage}
+                total={totalCount}
+                pageSize={24}
+                onChange={handlePageChange}
+                showSizeChanger={false}
+                showTotal={(total, range) =>
+                  `แสดง ${range[0]}-${range[1]} จากทั้งหมด ${total} ราย`
+                }
               />
-            )
-          })}
-        </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -97,8 +97,8 @@ const ERROR_MESSAGE = {
 }
 
 const TOOLTIP_STAR = {
-  active: 'เพลงนี้ถูกปักหมุดเป็นเพลงสำคัญแล้ว',
-  inactive: 'ปักหมุดเพลงนี้เป็นเพลงสำคัญ',
+  active: 'เพลงนี้ติดดาวแล้ว',
+  inactive: 'ติดดาวเพลงนี้',
 }
 
 const TOOLTIP_DELETE = 'ลบเพลงนี้ออกจากอัลบัม'
@@ -276,8 +276,8 @@ export default function TrackList({ tracks, layout = 'default', artistName }: Tr
 
     const statusLabel = STATUS_CONFIG[status].label
     const starredLabel = starred
-      ? 'เพลงนี้ถูกปักหมุดเป็นเพลงสำคัญ'
-      : 'เพลงนี้ยังไม่ได้ปักหมุด'
+      ? 'เพลงนี้ติดดาวแล้ว'
+      : 'เพลงนี้ยังไม่ได้ติดดาว'
 
     modal.confirm({
       title: `ยืนยันการลบเพลง (${statusLabel})`,

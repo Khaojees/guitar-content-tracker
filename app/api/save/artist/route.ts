@@ -27,10 +27,45 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (existingSource) {
+    if (existingSource && existingSource.artistId) {
+      // Artist exists - sync new tracks
+      const albumsResponse = await fetch(
+        `https://itunes.apple.com/lookup?id=${artistId}&entity=album&limit=200`
+      )
+      const albumsData = await albumsResponse.json()
+
+      const albums = albumsData.results.filter((item: any) => item.wrapperType === 'collection')
+      const CONCURRENCY_LIMIT = 5
+
+      let totalTracksCreated = 0
+
+      for (let i = 0; i < albums.length; i += CONCURRENCY_LIMIT) {
+        const batch = albums.slice(i, i + CONCURRENCY_LIMIT)
+
+        const results = await Promise.allSettled(
+          batch.map((albumData: any) => importAlbumFromItunes(albumData.collectionId))
+        )
+
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            totalTracksCreated += result.value.createdTrackCount
+          }
+        })
+      }
+
+      const totalTracks = await prisma.track.count({
+        where: {
+          album: {
+            artistId: existingSource.artistId,
+          },
+        },
+      })
+
       return NextResponse.json({
-        message: 'Artist already exists',
+        message: totalTracksCreated > 0 ? 'Synced new tracks' : 'Artist already exists',
         artistId: existingSource.artistId,
+        totalTracks,
+        newTracks: totalTracksCreated,
       })
     }
 

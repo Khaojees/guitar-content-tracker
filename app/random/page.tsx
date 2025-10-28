@@ -1,76 +1,76 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Card, Button, Typography, Tag, Empty, message } from 'antd'
+import { useState } from "react";
+import { Card, Button, Typography, Tag, Empty, message } from "antd";
 import {
   ThunderboltOutlined,
   StarFilled,
   ClockCircleOutlined,
   EyeOutlined,
-} from '@ant-design/icons'
-import Link from 'next/link'
+} from "@ant-design/icons";
+import Link from "next/link";
 
-const { Title, Paragraph, Text } = Typography
+const { Title, Paragraph, Text } = Typography;
 
 type RandomTrack = {
-  id: number
-  name: string
-  status: 'idea' | 'ready' | 'recorded' | 'posted'
-  duration: number | null
+  id: number;
+  name: string;
+  status: "idea" | "ready" | "recorded" | "posted";
+  duration: number | null;
   artist: {
-    id: number
-    name: string
-  }
+    id: number;
+    name: string;
+  };
   album: {
-    name: string
-    imageUrl?: string | null
-  }
-}
+    name: string;
+    imageUrl?: string | null;
+  };
+};
 
 const STATUS_BADGE: Record<
-  RandomTrack['status'],
+  RandomTrack["status"],
   { label: string; className: string }
 > = {
-  idea: { label: 'Idea', className: 'bg-slate-100 text-slate-700' },
-  ready: { label: 'Ready', className: 'bg-sky-100 text-sky-700' },
-  recorded: { label: 'Recorded', className: 'bg-amber-100 text-amber-700' },
-  posted: { label: 'Posted', className: 'bg-emerald-100 text-emerald-700' },
-}
+  idea: { label: "Idea", className: "bg-slate-100 text-slate-700" },
+  ready: { label: "Ready", className: "bg-sky-100 text-sky-700" },
+  recorded: { label: "Recorded", className: "bg-amber-100 text-amber-700" },
+  posted: { label: "Posted", className: "bg-emerald-100 text-emerald-700" },
+};
 
 export default function RandomPage() {
-  const [track, setTrack] = useState<RandomTrack | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [track, setTrack] = useState<RandomTrack | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const getRandomTrack = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const response = await fetch('/api/random-starred')
-      const data = await response.json()
+      const response = await fetch("/api/random-starred");
+      const data = await response.json();
       if (response.ok && data.track) {
-        setTrack(data.track as RandomTrack)
+        setTrack(data.track as RandomTrack);
       } else {
-        message.error(data.error || 'สุ่มเพลงไม่สำเร็จ')
+        message.error(data.error || "สุ่มเพลงไม่สำเร็จ");
       }
     } catch (error) {
-      console.error('Random track error:', error)
-      message.error('เกิดข้อผิดพลาดในการสุ่มเพลง')
+      console.error("Random track error:", error);
+      message.error("เกิดข้อผิดพลาดในการสุ่มเพลง");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const formatDuration = (ms: number | null) => {
-    if (!ms) return '—'
-    const minutes = Math.floor(ms / 60000)
-    const seconds = Math.floor((ms % 60000) / 1000)
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
+    if (!ms) return "—";
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
 
   return (
     <div className="space-y-10">
       <section className="text-center space-y-3">
         <Title level={2} className="!mb-2 !text-slate-900">
-          สุ่มแรงบันดาลใจจากเพลงที่คุณปักหมุด
+          สุ่มแรงบันดาลใจจากเพลงที่คุณติดดาว
         </Title>
         <Paragraph className="!mb-0 text-slate-600">
           กดสุ่มเพื่อเลือกเพลงที่อยากหยิบมาทำคอนเทนต์ในตอนนี้ทันที
@@ -89,7 +89,7 @@ export default function RandomPage() {
             loading={loading}
             className="mx-auto flex items-center gap-2 rounded-full px-8 text-base shadow-lg shadow-indigo-500/25 hover:-translate-y-[1px]"
           >
-            {loading ? 'กำลังสุ่มเพลง...' : 'สุ่มเพลงจากลิสต์ที่ปักหมุด'}
+            {loading ? "กำลังสุ่มเพลง..." : "สุ่มเพลงจากลิสต์ที่ติดดาว"}
           </Button>
 
           {track ? (
@@ -117,7 +117,9 @@ export default function RandomPage() {
 
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <span
-                    className={`inline-flex items-center rounded-full px-4 py-1 text-sm font-semibold ${STATUS_BADGE[track.status].className}`}
+                    className={`inline-flex items-center rounded-full px-4 py-1 text-sm font-semibold ${
+                      STATUS_BADGE[track.status].className
+                    }`}
                   >
                     {STATUS_BADGE[track.status].label}
                   </span>
@@ -159,5 +161,5 @@ export default function RandomPage() {
         </div>
       </Card>
     </div>
-  )
+  );
 }

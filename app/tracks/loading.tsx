@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { Card, Skeleton, Table } from 'antd'
+import { Card, Skeleton, Table } from "antd";
 
 export default function Loading() {
   const columns = [
-    { title: 'เพลง', dataIndex: 'name', key: 'name' },
-    { title: 'ศิลปิน', dataIndex: 'artist', key: 'artist' },
-    { title: 'อัลบั้ม', dataIndex: 'album', key: 'album' },
-    { title: 'ความยาว', dataIndex: 'duration', key: 'duration' },
-    { title: 'สถานะ', dataIndex: 'status', key: 'status' },
-    { title: 'ปักหมุด', dataIndex: 'starred', key: 'starred' },
-  ]
+    { title: "เพลง", dataIndex: "name", key: "name" },
+    { title: "ศิลปิน", dataIndex: "artist", key: "artist" },
+    { title: "อัลบั้ม", dataIndex: "album", key: "album" },
+    { title: "ความยาว", dataIndex: "duration", key: "duration" },
+    { title: "สถานะ", dataIndex: "status", key: "status" },
+    { title: "ติดดาว", dataIndex: "starred", key: "starred" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -25,9 +25,9 @@ export default function Loading() {
           dataSource={[]}
           loading={true}
           pagination={false}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: "max-content" }}
         />
       </div>
     </div>
-  )
+  );
 }

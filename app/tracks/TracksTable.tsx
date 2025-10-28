@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { App, Button, Empty, Input, Segmented, Select, Table, Tag } from 'antd'
+import { App, Button, Empty, Input, Pagination, Segmented, Select, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined } from '@ant-design/icons'
 
@@ -37,7 +38,7 @@ const STATUS_FILTERS = [
   { label: STATUS_CONFIG.ready.label, value: 'ready' },
   { label: STATUS_CONFIG.recorded.label, value: 'recorded' },
   { label: STATUS_CONFIG.posted.label, value: 'posted' },
-  { label: 'เพลงสำคัญ', value: 'starred' },
+  { label: 'ติดดาว', value: 'starred' },
 ]
 
 const formatDuration = (ms: number | null) => {
@@ -49,19 +50,34 @@ const formatDuration = (ms: number | null) => {
 
 type TracksTableProps = {
   tracks: TrackRow[]
+  currentPage: number
+  totalPages: number
+  totalCount: number
+  searchTerm: string
+  statusFilter: string
+  showIgnored: boolean
 }
 
-export default function TracksTable({ tracks }: TracksTableProps) {
+export default function TracksTable({
+  tracks,
+  currentPage,
+  totalPages,
+  totalCount,
+  searchTerm: initialSearchTerm,
+  statusFilter: initialStatusFilter,
+  showIgnored: initialShowIgnored
+}: TracksTableProps) {
   const { message } = App.useApp()
+  const router = useRouter()
   const [rows, setRows] = useState(tracks)
   const savedNotesRef = useRef<Record<number, string>>(
     Object.fromEntries(tracks.map((track) => [track.id, track.note || '']))
   )
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
   const [statusFilter, setStatusFilter] = useState<
     (typeof STATUS_FILTERS)[number]['value']
-  >('all')
-  const [showIgnored, setShowIgnored] = useState(false)
+  >(initialStatusFilter as (typeof STATUS_FILTERS)[number]['value'])
+  const [showIgnored, setShowIgnored] = useState(initialShowIgnored)
 
   useEffect(() => {
     setRows(tracks)
@@ -69,29 +85,6 @@ export default function TracksTable({ tracks }: TracksTableProps) {
       tracks.map((track) => [track.id, track.note || ''])
     )
   }, [tracks])
-
-  const filteredTracks = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase()
-
-    return rows.filter((track) => {
-      const matchesSearch = normalizedSearch
-        ? track.name.toLowerCase().includes(normalizedSearch) ||
-          track.artistName.toLowerCase().includes(normalizedSearch) ||
-          track.albumName.toLowerCase().includes(normalizedSearch)
-        : true
-
-      const matchesStatus =
-        statusFilter === 'all'
-          ? true
-          : statusFilter === 'starred'
-          ? track.starred
-          : track.status === statusFilter
-
-      const matchesIgnored = showIgnored ? true : !track.ignored
-
-      return matchesSearch && matchesStatus && matchesIgnored
-    })
-  }, [rows, searchTerm, statusFilter, showIgnored])
 
   const toggleStar = async (track: TrackRow) => {
     try {
@@ -106,7 +99,7 @@ export default function TracksTable({ tracks }: TracksTableProps) {
       })
 
       if (!response.ok) {
-        message.error('ไม่สามารถเปลี่ยนสถานะเพลงสำคัญได้')
+        message.error('ไม่สามารถติดดาวได้')
         return
       }
 
@@ -119,12 +112,12 @@ export default function TracksTable({ tracks }: TracksTableProps) {
       )
       message.success(
         newStarred
-          ? 'ปักหมุดเพลงนี้เป็นเพลงสำคัญแล้ว'
-          : 'เอาเพลงนี้ออกจากเพลงสำคัญเรียบร้อย'
+          ? 'ติดดาวเพลงนี้แล้ว'
+          : 'ถอดดาวเพลงนี้แล้ว'
       )
     } catch (error) {
       console.error('Toggle star error:', error)
-      message.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะเพลงสำคัญ')
+      message.error('เกิดข้อผิดพลาดระหว่างติดดาว')
     }
   }
 
@@ -214,11 +207,52 @@ export default function TracksTable({ tracks }: TracksTableProps) {
     }
   }
 
+  const handleSearch = (value: string) => {
+    const params = new URLSearchParams()
+    if (value) params.set('search', value)
+    if (statusFilter !== 'all') params.set('status', statusFilter)
+    if (showIgnored) params.set('showIgnored', 'true')
+    params.set('page', '1')
+    router.push(`/tracks?${params.toString()}`)
+  }
+
+  const handleStatusFilterChange = (value: (typeof STATUS_FILTERS)[number]['value']) => {
+    setStatusFilter(value)
+    const params = new URLSearchParams()
+    if (searchTerm) params.set('search', searchTerm)
+    if (value !== 'all') params.set('status', value)
+    if (showIgnored) params.set('showIgnored', 'true')
+    params.set('page', '1')
+    router.push(`/tracks?${params.toString()}`)
+  }
+
+  const handleToggleIgnored = () => {
+    const newShowIgnored = !showIgnored
+    setShowIgnored(newShowIgnored)
+    const params = new URLSearchParams()
+    if (searchTerm) params.set('search', searchTerm)
+    if (statusFilter !== 'all') params.set('status', statusFilter)
+    if (newShowIgnored) params.set('showIgnored', 'true')
+    params.set('page', '1')
+    router.push(`/tracks?${params.toString()}`)
+  }
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams()
+    if (searchTerm) params.set('search', searchTerm)
+    if (statusFilter !== 'all') params.set('status', statusFilter)
+    if (showIgnored) params.set('showIgnored', 'true')
+    params.set('page', page.toString())
+    router.push(`/tracks?${params.toString()}`)
+  }
+
   const columns: ColumnsType<TrackRow> = [
     {
       title: 'เพลง',
       dataIndex: 'name',
       key: 'name',
+      fixed: 'left',
+      width: 200,
       render: (name, record) => (
         <Link
           href={`/artists/${record.artistId}`}
@@ -318,7 +352,7 @@ export default function TracksTable({ tracks }: TracksTableProps) {
       ),
     },
     {
-      title: 'เพลงสำคัญ',
+      title: 'ติดดาว',
       dataIndex: 'starred',
       key: 'starred',
       align: 'center',
@@ -380,13 +414,14 @@ export default function TracksTable({ tracks }: TracksTableProps) {
           allowClear
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
+          onSearch={handleSearch}
           className="w-full md:max-w-md"
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <Button
             type={showIgnored ? 'primary' : 'default'}
             icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-            onClick={() => setShowIgnored(!showIgnored)}
+            onClick={handleToggleIgnored}
             size="small"
             className="self-start"
           >
@@ -397,7 +432,7 @@ export default function TracksTable({ tracks }: TracksTableProps) {
             <Segmented
               options={STATUS_FILTERS}
               value={statusFilter}
-              onChange={(value) => setStatusFilter(value as typeof statusFilter)}
+              onChange={(value) => handleStatusFilterChange(value as typeof statusFilter)}
               size="small"
             />
           </div>
@@ -406,20 +441,28 @@ export default function TracksTable({ tracks }: TracksTableProps) {
 
       <div className="overflow-x-auto rounded-lg bg-white shadow">
         <Table
-          dataSource={filteredTracks}
+          dataSource={rows}
           columns={columns}
           rowKey="id"
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: false,
-            showTotal: (total, range) =>
-              range[0] === range[1]
-                ? `แสดง ${range[0]} จากทั้งหมด ${filteredTracks.length} เพลง`
-                : `แสดง ${range[0]}-${range[1]} จากทั้งหมด ${filteredTracks.length} เพลง`,
-          }}
+          pagination={false}
           scroll={{ x: 'max-content' }}
         />
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center">
+          <Pagination
+            current={currentPage}
+            total={totalCount}
+            pageSize={50}
+            onChange={handlePageChange}
+            showSizeChanger={false}
+            showTotal={(total, range) =>
+              `แสดง ${range[0]}-${range[1]} จากทั้งหมด ${total} เพลง`
+            }
+          />
+        </div>
+      )}
     </div>
   )
 }

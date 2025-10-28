@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, Button, Spin, Empty } from "antd";
 import {
-  SyncOutlined,
+  // SyncOutlined, // DISABLED: for Release Radar
   SearchOutlined,
   UserOutlined,
   ThunderboltOutlined,
@@ -152,6 +152,7 @@ export default function HomePage() {
         )}
       </Card>
 
+      {/* TEMPORARILY DISABLED: Release Radar
       <Card title="Release Radar" extra={<SyncOutlined />}>
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
@@ -167,6 +168,7 @@ export default function HomePage() {
           </Link>
         </div>
       </Card>
+      */}
     </div>
   );
 }

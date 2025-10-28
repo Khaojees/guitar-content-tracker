@@ -28,7 +28,7 @@ const STATUS_SEGMENTS: { label: string; value: StatusFilter }[] = [
   { label: 'พร้อมทำงาน', value: 'ready' },
   { label: 'อัดแล้ว', value: 'recorded' },
   { label: 'เผยแพร่แล้ว', value: 'posted' },
-  { label: 'เพลงสำคัญ', value: 'starred' },
+  { label: 'ติดดาว', value: 'starred' },
 ]
 
 const STATUS_LABEL_MAP: Record<TrackStatusKey, string> = {
@@ -133,7 +133,7 @@ export default function ArtistAlbums({ albums, artistName }: { albums: AlbumWith
                 </span>
               ))}
               <span className="rounded-full bg-rose-100 px-2.5 py-1 font-medium text-rose-600">
-                เพลงสำคัญ • {statusCounts.starred}
+                ติดดาว • {statusCounts.starred}
               </span>
             </div>
           </div>

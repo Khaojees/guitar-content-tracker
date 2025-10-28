@@ -6,23 +6,63 @@ import { PlusOutlined } from '@ant-design/icons'
 
 export const dynamic = 'force-dynamic'
 
-export default async function ArtistsPage() {
-  const artists = await prisma.artist.findMany({
-    include: {
-      albums: {
-        include: {
-          tracks: {
-            include: {
-              trackStatus: true,
+const ITEMS_PER_PAGE = 24
+
+export default async function ArtistsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; search?: string; filter?: string }>
+}) {
+  const params = await searchParams
+  const page = parseInt(params.page || '1', 10)
+  const searchTerm = params.search || ''
+  const filter = params.filter || 'all'
+  const skip = (page - 1) * ITEMS_PER_PAGE
+
+  // Build where clause
+  const whereClause: any = {}
+
+  // Search by name
+  if (searchTerm) {
+    whereClause.name = {
+      contains: searchTerm,
+      mode: 'insensitive',
+    }
+  }
+
+  // Filter by sync status
+  if (filter === 'synced') {
+    whereClause.syncEnabled = true
+  } else if (filter === 'notSynced') {
+    whereClause.syncEnabled = false
+  }
+
+  const [artists, totalCount] = await Promise.all([
+    prisma.artist.findMany({
+      where: whereClause,
+      include: {
+        albums: {
+          include: {
+            tracks: {
+              include: {
+                trackStatus: true,
+              },
             },
           },
         },
       },
-    },
-    orderBy: {
-      name: 'asc',
-    },
-  })
+      orderBy: {
+        name: 'asc',
+      },
+      take: ITEMS_PER_PAGE,
+      skip,
+    }),
+    prisma.artist.count({
+      where: whereClause,
+    }),
+  ])
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
   return (
     <div className="space-y-6">
@@ -30,7 +70,7 @@ export default async function ArtistsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">ศิลปิน</h1>
           <p className="mt-1 text-sm text-gray-600">
-            ศิลปินทั้งหมด {artists.length} ราย
+            ศิลปินทั้งหมด {totalCount} ราย
           </p>
         </div>
         <Link href="/search">
@@ -40,7 +80,7 @@ export default async function ArtistsPage() {
         </Link>
       </div>
 
-      {artists.length === 0 ? (
+      {totalCount === 0 ? (
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white">
           <div className="text-center">
             <Empty description="ยังไม่มีศิลปิน" />
@@ -52,7 +92,14 @@ export default async function ArtistsPage() {
           </div>
         </div>
       ) : (
-        <ArtistsList artists={artists} />
+        <ArtistsList
+          artists={artists}
+          currentPage={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          searchTerm={searchTerm}
+          filter={filter}
+        />
       )}
     </div>
   )

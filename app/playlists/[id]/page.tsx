@@ -196,12 +196,12 @@ export default function PlaylistDetailPage({
       if (response.ok) {
         message.success(
           !currentStarred
-            ? 'ปักหมุดเพลงนี้เป็นเพลงสำคัญแล้ว'
-            : 'เอาเพลงนี้ออกจากเพลงสำคัญเรียบร้อย'
+            ? 'ติดดาวเพลงนี้แล้ว'
+            : 'ถอดดาวเพลงนี้แล้ว'
         )
         fetchPlaylist()
       } else {
-        message.error('ไม่สามารถเปลี่ยนสถานะเพลงสำคัญได้')
+        message.error('ไม่สามารถติดดาวได้')
       }
     } catch (error) {
       console.error('Toggle star error:', error)

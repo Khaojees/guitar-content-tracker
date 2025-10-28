@@ -35,7 +35,7 @@ type Metric = {
 const METRIC_DEFINITIONS: Metric[] = [
   { key: 'albums', label: 'อัลบัมทั้งหมด', color: 'sky' },
   { key: 'tracks', label: 'เพลงทั้งหมด', color: 'indigo' },
-  { key: 'important', label: 'เพลงสำคัญ', color: 'emerald' },
+  { key: 'important', label: 'ติดดาว', color: 'emerald' },
 ]
 
 const METRIC_COLORS = {
@@ -59,13 +59,13 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
   const [deleting, setDeleting] = useState(false)
   const [syncEnabled, setSyncEnabled] = useState<boolean>(artist.syncEnabled)
   const [updatingSync, setUpdatingSync] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   const importantTracks = useMemo(
     () =>
       artist.albums.flatMap((album) =>
         album.tracks.filter((track) => {
-          const status = track.trackStatus?.status
-          return status === 'recorded' || status === 'posted'
+          return track.trackStatus?.starred === true
         })
       ),
     [artist.albums]
@@ -83,6 +83,34 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
       value: totals[metric.key],
     }))
   }, [artist.albums, importantTracks.length])
+
+  const syncNow = async () => {
+    setSyncing(true)
+    try {
+      const response = await fetch(`/api/artist/${artist.id}/sync`, {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        if (data.newTracks > 0 || data.newAlbums > 0) {
+          message.success(
+            `Synced ${data.newAlbums} new album(s) and ${data.newTracks} new track(s)`
+          )
+          router.refresh()
+        } else {
+          message.info('No new releases found')
+        }
+      } else {
+        message.error(data.error || 'Failed to sync artist')
+      }
+    } catch (error) {
+      console.error('Sync artist error:', error)
+      message.error('Unexpected error while syncing artist')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const toggleSync = async () => {
     const nextValue = !syncEnabled
@@ -129,7 +157,7 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
           <div className="space-y-3 text-sm text-slate-600">
             <p>
               ศิลปิน <span className="font-semibold text-slate-900">{artist.name}</span>{' '}
-              มีเพลงสำคัญอยู่ {importantTracks.length} เพลง หากลบข้อมูลจะหายทั้งหมด
+              มีเพลงติดดาวอยู่ {importantTracks.length} เพลง หากลบข้อมูลจะหายทั้งหมด
             </p>
             <p>
               โปรดตรวจสอบให้แน่ใจก่อนดำเนินการ เพราะการลบนี้จะลบเพลง สถานะ
@@ -146,7 +174,7 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
         title: 'ลบศิลปินออกจากระบบ',
         content: (
           <p className="text-sm text-slate-600">
-            ศิลปิน {artist.name} ยังไม่มีเพลงสำคัญในระบบ หากลบแล้วสามารถเพิ่มใหม่ได้ในภายหลัง
+            ศิลปิน {artist.name} ยังไม่มีเพลงติดดาวในระบบ หากลบแล้วสามารถเพิ่มใหม่ได้ในภายหลัง
           </p>
         ),
         okText: 'ลบศิลปิน',
@@ -226,14 +254,24 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
               <span className="inline sm:hidden">กลับ</span>
             </Button>
             <Button
-              icon={<SyncOutlined />}
-              onClick={toggleSync}
-              loading={updatingSync}
-              type={syncEnabled ? 'primary' : 'default'}
+              icon={<SyncOutlined spin={syncing} />}
+              onClick={syncNow}
+              loading={syncing}
+              type="primary"
               className="rounded-full px-3 sm:px-4"
               size="small"
             >
-              {syncEnabled ? 'Disable sync' : 'Enable sync'}
+              Sync now
+            </Button>
+            <Button
+              icon={<SyncOutlined />}
+              onClick={toggleSync}
+              loading={updatingSync}
+              type={syncEnabled ? 'default' : 'default'}
+              className="rounded-full px-3 sm:px-4"
+              size="small"
+            >
+              {syncEnabled ? 'Auto: ON' : 'Auto: OFF'}
             </Button>
             <Button
               danger

@@ -79,7 +79,7 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
               {artist.importantTracksCount > 0 && (
                 <>
                   <Badge count={artist.importantTracksCount} color="red" />
-                  <span>เพลงสำคัญ</span>
+                  <span>ติดดาว</span>
                 </>
               )}
             </div>

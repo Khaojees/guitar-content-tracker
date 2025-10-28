@@ -24,6 +24,7 @@ model Artist {
   sources Source[]
 
   @@index([name])
+  @@index([syncEnabled])
 }
 
 // อัลบั้ม
@@ -61,6 +62,7 @@ model Track {
 
   @@index([albumId])
   @@index([name])
+  @@index([createdAt])
 }
 
 // สถานะเพลง
