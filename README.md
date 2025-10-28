@@ -258,8 +258,9 @@ imageUrl   starred note
 #### 3. ตั้งค่า Environment Variables
 ใน Vercel Project Settings → Environment Variables เพิ่ม:
 ```env
-DATABASE_URL=postgres://...  (จาก Vercel Postgres)
-DIRECT_URL=postgres://...    (จาก Vercel Postgres)
+POSTGRES_URL=postgres://...              (จาก Prisma Postgres)
+POSTGRES_URL_NON_POOLING=postgres://...  (จาก Prisma Postgres)
+AUTH_PASSWORD=your-secret-password       (รหัสผ่านป้องกันการเข้าถึง)
 ```
 
 #### 4. Deploy
@@ -324,5 +325,11 @@ datasource db {
 **Migration Issues:**
 - ใช้ `prisma db push` แทน `prisma migrate` สำหรับ prototype
 - หรือสร้าง migrations ด้วย `prisma migrate dev` แล้ว commit
+
+**Authentication:**
+- เว็บใช้ Basic Auth ป้องกันการเข้าถึงโดยไม่ได้รับอนุญาต
+- ตั้ง `AUTH_PASSWORD` ใน Environment Variables
+- เมื่อเข้าเว็บครั้งแรก Browser จะถามรหัสผ่าน (username อะไรก็ได้)
+- ถ้าไม่ต้องการ auth ใน dev ก็ไม่ต้องใส่ `AUTH_PASSWORD` ใน `.env`
 
 ---
