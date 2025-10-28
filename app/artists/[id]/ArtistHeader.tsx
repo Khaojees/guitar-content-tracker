@@ -215,20 +215,23 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 lg:flex-col lg:items-end">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               icon={<ArrowLeftOutlined />}
               onClick={() => router.push('/artists')}
-              className="rounded-full border-slate-200 px-4"
+              className="rounded-full border-slate-200 px-3 sm:px-4"
+              size="small"
             >
-              กลับไปรายชื่อศิลปิน
+              <span className="hidden sm:inline">กลับไปรายชื่อศิลปิน</span>
+              <span className="inline sm:hidden">กลับ</span>
             </Button>
             <Button
               icon={<SyncOutlined />}
               onClick={toggleSync}
               loading={updatingSync}
               type={syncEnabled ? 'primary' : 'default'}
-              className="rounded-full px-4"
+              className="rounded-full px-3 sm:px-4"
+              size="small"
             >
               {syncEnabled ? 'Disable sync' : 'Enable sync'}
             </Button>
@@ -237,13 +240,14 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
               icon={<DeleteOutlined />}
               loading={deleting}
               onClick={confirmDelete}
-              className="rounded-full px-4"
+              className="rounded-full px-3 sm:px-4"
+              size="small"
             >
               ลบศิลปิน
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             {metrics.map((metric) => (
               <MetricPill
                 key={metric.key}
@@ -272,10 +276,10 @@ function MetricPill({
 
   return (
     <div
-      className={`flex min-w-[110px] flex-col items-center justify-center rounded-2xl px-3 py-2 text-center shadow-sm ${palette.bg}`}
+      className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-center shadow-sm sm:px-3 ${palette.bg}`}
     >
-      <span className="text-[11px] uppercase tracking-wider text-slate-500">{label}</span>
-      <span className={`text-lg font-semibold ${palette.text}`}>{value}</span>
+      <span className="text-[10px] uppercase tracking-wide text-slate-500 sm:text-[11px] sm:tracking-wider">{label}</span>
+      <span className={`text-base font-semibold sm:text-lg ${palette.text}`}>{value}</span>
     </div>
   )
 }

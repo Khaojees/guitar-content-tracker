@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { App, Button, Empty, Input, Segmented, Table, Tag } from 'antd'
+import { App, Button, Empty, Input, Segmented, Select, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined } from '@ant-design/icons'
 
@@ -189,6 +189,31 @@ export default function TracksTable({ tracks }: TracksTableProps) {
     }
   }
 
+  const updateStatus = async (track: TrackRow, newStatus: TrackStatusKey) => {
+    try {
+      const response = await fetch(`/api/track/${track.id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        message.error('ไม่สามารถเปลี่ยนสถานะได้')
+        return
+      }
+
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === track.id ? { ...row, status: newStatus } : row
+        )
+      )
+      message.success('เปลี่ยนสถานะเรียบร้อย')
+    } catch (error) {
+      console.error('Update status error:', error)
+      message.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะ')
+    }
+  }
+
   const columns: ColumnsType<TrackRow> = [
     {
       title: 'เพลง',
@@ -229,10 +254,18 @@ export default function TracksTable({ tracks }: TracksTableProps) {
       title: 'สถานะ',
       dataIndex: 'status',
       key: 'status',
-      render: (status: TrackStatusKey) => {
-        const config = STATUS_CONFIG[status]
-        return <Tag color={config.color}>{config.label}</Tag>
-      },
+      render: (status: TrackStatusKey, record) => (
+        <Select
+          value={status}
+          onChange={(value) => updateStatus(record, value)}
+          size="small"
+          style={{ width: 120 }}
+          options={Object.entries(STATUS_CONFIG).map(([key, config]) => ({
+            value: key,
+            label: config.label,
+          }))}
+        />
+      ),
     },
     {
       title: 'โน้ต',
@@ -341,32 +374,37 @@ export default function TracksTable({ tracks }: TracksTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3">
         <Input.Search
           placeholder="ค้นหาเพลง ศิลปิน หรืออัลบัม"
           allowClear
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          className="md:max-w-md"
+          className="w-full md:max-w-md"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <Button
             type={showIgnored ? 'primary' : 'default'}
             icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
             onClick={() => setShowIgnored(!showIgnored)}
+            size="small"
+            className="self-start"
           >
-            {showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}
+            <span className="hidden sm:inline">{showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}</span>
+            <span className="inline sm:hidden">{showIgnored ? 'แสดง' : 'ซ่อน'}ไม่สนใจ</span>
           </Button>
-          <Segmented
-            options={STATUS_FILTERS}
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value as typeof statusFilter)}
-            size="middle"
-          />
+          <div className="overflow-x-auto">
+            <Segmented
+              options={STATUS_FILTERS}
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value as typeof statusFilter)}
+              size="small"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg bg-white shadow">
+      <div className="overflow-x-auto rounded-lg bg-white shadow">
         <Table
           dataSource={filteredTracks}
           columns={columns}
@@ -379,6 +417,7 @@ export default function TracksTable({ tracks }: TracksTableProps) {
                 ? `แสดง ${range[0]} จากทั้งหมด ${filteredTracks.length} เพลง`
                 : `แสดง ${range[0]}-${range[1]} จากทั้งหมด ${filteredTracks.length} เพลง`,
           }}
+          scroll={{ x: 'max-content' }}
         />
       </div>
     </div>

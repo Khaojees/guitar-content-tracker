@@ -19,12 +19,13 @@ export default function Loading() {
         <Skeleton.Input active className="!mt-2 !h-5 !w-48" />
       </div>
 
-      <div className="overflow-hidden rounded-lg bg-white shadow">
+      <div className="overflow-x-auto rounded-lg bg-white shadow">
         <Table
           columns={columns}
           dataSource={[]}
           loading={true}
           pagination={false}
+          scroll={{ x: 'max-content' }}
         />
       </div>
     </div>

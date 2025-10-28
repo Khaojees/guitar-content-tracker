@@ -170,14 +170,16 @@ export default function ArtistAlbums({ albums, artistName }: { albums: AlbumWith
           allowClear
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          className="lg:max-w-md"
+          className="w-full lg:max-w-md"
         />
-        <Segmented
-          options={STATUS_SEGMENTS}
-          value={statusFilter}
-          onChange={(value) => setStatusFilter(value as StatusFilter)}
-          size="middle"
-        />
+        <div className="overflow-x-auto">
+          <Segmented
+            options={STATUS_SEGMENTS}
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value as StatusFilter)}
+            size="small"
+          />
+        </div>
       </div>
 
       <Collapse

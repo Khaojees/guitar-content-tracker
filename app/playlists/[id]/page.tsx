@@ -241,6 +241,26 @@ export default function PlaylistDetailPage({
     })
   }, [playlist, showIgnored])
 
+  const updateStatus = async (trackId: number, newStatus: TrackStatusKey) => {
+    try {
+      const response = await fetch(`/api/track/${trackId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (response.ok) {
+        message.success('เปลี่ยนสถานะเรียบร้อย')
+        fetchPlaylist()
+      } else {
+        message.error('ไม่สามารถเปลี่ยนสถานะได้')
+      }
+    } catch (error) {
+      console.error('Update status error:', error)
+      message.error('เกิดข้อผิดพลาด')
+    }
+  }
+
   const columns: ColumnsType<PlaylistTrack> = [
     {
       title: 'เพลง',
@@ -281,10 +301,20 @@ export default function PlaylistDetailPage({
       title: 'สถานะ',
       dataIndex: ['track', 'trackStatus', 'status'],
       key: 'status',
-      render: (status: string | undefined) => {
+      render: (status: string | undefined, record) => {
         const statusKey = (status || 'idea') as TrackStatusKey
-        const config = STATUS_CONFIG[statusKey]
-        return <Tag color={config.color}>{config.label}</Tag>
+        return (
+          <Select
+            value={statusKey}
+            onChange={(value) => updateStatus(record.track.id, value)}
+            size="small"
+            style={{ width: 120 }}
+            options={Object.entries(STATUS_CONFIG).map(([key, config]) => ({
+              value: key,
+              label: config.label,
+            }))}
+          />
+        )
       },
     },
     {
@@ -395,15 +425,17 @@ export default function PlaylistDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => router.push('/playlists')}
+            size="small"
+            className="self-start"
           >
             กลับ
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">{playlist.name}</h1>
             {playlist.description && (
               <p className="mt-1 text-sm text-gray-600">{playlist.description}</p>
@@ -413,13 +445,15 @@ export default function PlaylistDetailPage({
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type={showIgnored ? 'primary' : 'default'}
             icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
             onClick={() => setShowIgnored(!showIgnored)}
+            size="small"
           >
-            {showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}
+            <span className="hidden sm:inline">{showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}</span>
+            <span className="inline sm:hidden">{showIgnored ? 'แสดง' : 'ซ่อน'}ไม่สนใจ</span>
           </Button>
           <Button
             type="primary"
@@ -428,6 +462,7 @@ export default function PlaylistDetailPage({
               fetchAvailableTracks()
               setIsAddModalOpen(true)
             }}
+            size="small"
           >
             เพิ่มเพลง
           </Button>
@@ -450,7 +485,7 @@ export default function PlaylistDetailPage({
           </Empty>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg bg-white shadow">
+        <div className="overflow-x-auto rounded-lg bg-white shadow">
           <Table
             dataSource={filteredTracks}
             columns={columns}
@@ -459,6 +494,7 @@ export default function PlaylistDetailPage({
               pageSize: 20,
               showSizeChanger: false,
             }}
+            scroll={{ x: 'max-content' }}
           />
         </div>
       )}
