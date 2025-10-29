@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { Album, Artist, Track } from '@prisma/client'
+import { Prisma, type Album, type Artist, type Track } from '@prisma/client'
 
 type EnsureArtistOptions = {
   name: string
@@ -32,6 +32,10 @@ const ITUNES_BASE = 'https://itunes.apple.com'
 const normalizeArtwork = (artworkUrl?: string | null) => {
   if (!artworkUrl) return null
   return artworkUrl.replace('100x100bb', '600x600bb')
+}
+
+type ImportAlbumOptions = {
+  existingArtist?: Artist | null
 }
 
 async function fetchItunes(endpoint: string) {
@@ -188,7 +192,10 @@ async function createTrackIfMissing(
   return { track, created: true }
 }
 
-export async function importAlbumFromItunes(collectionId: number) {
+export async function importAlbumFromItunes(
+  collectionId: number,
+  options: ImportAlbumOptions = {}
+) {
   const lookupData = await fetchItunes(`/lookup?id=${collectionId}&entity=song&limit=200`)
 
   if (!lookupData?.results?.length) {
@@ -206,11 +213,28 @@ export async function importAlbumFromItunes(collectionId: number) {
     throw new Error('Album data incomplete from iTunes')
   }
 
-  const artist = await ensureArtistFromItunes(collectionEntry.artistId, {
+  const artistEnsureOptions = {
     name: collectionEntry.artistName || 'Unknown Artist',
     imageUrl: collectionEntry.artworkUrl100,
     syncEnabled: false,
-  })
+  }
+
+  let artist: Artist
+
+  if (options.existingArtist) {
+    artist = options.existingArtist
+
+    if (!artist.imageUrl && collectionEntry.artworkUrl100) {
+      artist = await prisma.artist.update({
+        where: { id: artist.id },
+        data: {
+          imageUrl: normalizeArtwork(collectionEntry.artworkUrl100),
+        },
+      })
+    }
+  } else {
+    artist = await ensureArtistFromItunes(collectionEntry.artistId, artistEnsureOptions)
+  }
 
   const { album, created: createdAlbum } = await ensureAlbumFromItunes(artist, collectionEntry.collectionId, {
     name: collectionEntry.collectionName || 'Untitled Album',
@@ -223,16 +247,79 @@ export async function importAlbumFromItunes(collectionId: number) {
 
   const createdTracks: Track[] = []
 
-  for (const entry of trackEntries) {
-    const { track, created } = await createTrackIfMissing(album, {
-      trackId: entry.trackId,
-      trackName: entry.trackName,
-      trackTimeMillis: entry.trackTimeMillis ?? null,
-      trackNumber: entry.trackNumber ?? null,
-    })
+  const trackIds = trackEntries
+    .map((entry: any) => entry.trackId)
+    .filter((trackId: number | null | undefined): trackId is number => typeof trackId === 'number')
 
-    if (created) {
-      createdTracks.push(track)
+  const existingSources =
+    trackIds.length > 0
+      ? await prisma.source.findMany({
+          where: {
+            type: 'itunes_track',
+            externalId: {
+              in: trackIds.map(String),
+            },
+          },
+          select: {
+            externalId: true,
+          },
+        })
+      : []
+
+  const existingTrackIds = new Set(existingSources.map((source) => source.externalId))
+  const tracksToCreate = trackEntries.filter(
+    (entry: any) =>
+      entry.trackId && !existingTrackIds.has(String(entry.trackId))
+  )
+
+  const TRACK_CONCURRENCY_LIMIT = 10
+
+  for (let index = 0; index < tracksToCreate.length; index += TRACK_CONCURRENCY_LIMIT) {
+    const batch = tracksToCreate.slice(index, index + TRACK_CONCURRENCY_LIMIT)
+
+    const batchResults = await Promise.all(
+      batch.map(async (entry: any) => {
+        try {
+          const track = await prisma.track.create({
+            data: {
+              name: entry.trackName || 'Untitled Track',
+              duration: entry.trackTimeMillis ?? null,
+              trackNumber: entry.trackNumber ?? null,
+              albumId: album.id,
+              sources: {
+                create: {
+                  type: 'itunes_track',
+                  externalId: String(entry.trackId),
+                },
+              },
+              trackStatus: {
+                create: {
+                  status: 'idea',
+                  starred: false,
+                  ignored: false,
+                },
+              },
+            },
+          })
+
+          return track
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+          ) {
+            return null
+          }
+
+          throw error
+        }
+      })
+    )
+
+    for (const track of batchResults) {
+      if (track) {
+        createdTracks.push(track)
+      }
     }
   }
 

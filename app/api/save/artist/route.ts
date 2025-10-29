@@ -39,11 +39,15 @@ export async function POST(request: NextRequest) {
 
       let totalTracksCreated = 0
 
+      const existingArtist = existingSource.artist
+
       for (let i = 0; i < albums.length; i += CONCURRENCY_LIMIT) {
         const batch = albums.slice(i, i + CONCURRENCY_LIMIT)
 
         const results = await Promise.allSettled(
-          batch.map((albumData: any) => importAlbumFromItunes(albumData.collectionId))
+          batch.map((albumData: any) =>
+            importAlbumFromItunes(albumData.collectionId, { existingArtist })
+          )
         )
 
         results.forEach((result) => {
@@ -92,7 +96,9 @@ export async function POST(request: NextRequest) {
       const batch = albums.slice(i, i + CONCURRENCY_LIMIT)
 
       const results = await Promise.allSettled(
-        batch.map((albumData: any) => importAlbumFromItunes(albumData.collectionId))
+        batch.map((albumData: any) =>
+          importAlbumFromItunes(albumData.collectionId, { existingArtist: artist })
+        )
       )
 
       results.forEach((result) => {
