@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { App, Button, Input, Modal, Select, Spin, Table, Tag, Empty } from 'antd'
+import { App, Button, Input, Modal, Select, Spin, Table, Tag, Empty, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined,
@@ -13,8 +13,10 @@ import {
   YoutubeOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
+  CopyOutlined,
 } from '@ant-design/icons'
 import Link from 'next/link'
+import { buildGuessSongText } from '@/lib/guessSongText'
 
 type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
 
@@ -233,6 +235,21 @@ export default function PlaylistDetailPage({
     }
   }
 
+  const handleCopyGuessText = async (playlistTrack: PlaylistTrack) => {
+    try {
+      await navigator.clipboard.writeText(
+        buildGuessSongText(
+          playlistTrack.track.name,
+          playlistTrack.track.album.artist.name
+        )
+      )
+      message.success('Copied guess text to clipboard')
+    } catch (error) {
+      console.error('Copy guess text error:', error)
+      message.error('Unable to copy guess text')
+    }
+  }
+
   const filteredTracks = useMemo(() => {
     if (!playlist) return []
     return playlist.playlistTracks.filter((pt) => {
@@ -316,6 +333,20 @@ export default function PlaylistDetailPage({
           />
         )
       },
+    },
+    {
+      title: '',
+      key: 'copyGuessText',
+      align: 'center',
+      render: (_, record) => (
+        <Tooltip title="Copy guess text template">
+          <Button
+            type="text"
+            icon={<CopyOutlined />}
+            onClick={() => handleCopyGuessText(record)}
+          />
+        </Tooltip>
+      ),
     },
     {
       title: 'YouTube',

@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { App, Button, Empty, Input, Pagination, Segmented, Select, Table, Tag } from 'antd'
+import { App, Button, Empty, Input, Pagination, Segmented, Select, Table, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined } from '@ant-design/icons'
+import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined, CopyOutlined } from '@ant-design/icons'
+import { buildGuessSongText } from '@/lib/guessSongText'
 
 export type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
 
@@ -246,6 +247,18 @@ export default function TracksTable({
     router.push(`/tracks?${params.toString()}`)
   }
 
+  const handleCopyGuessText = async (track: TrackRow) => {
+    try {
+      await navigator.clipboard.writeText(
+        buildGuessSongText(track.name, track.artistName)
+      )
+      message.success('Copied guess text to clipboard')
+    } catch (error) {
+      console.error('Copy guess text error:', error)
+      message.error('Unable to copy guess text')
+    }
+  }
+
   const columns: ColumnsType<TrackRow> = [
     {
       title: 'เพลง',
@@ -387,6 +400,20 @@ export default function TracksTable({
             )
           }
         />
+      ),
+    },
+    {
+      title: '',
+      key: 'copyGuessText',
+      align: 'center',
+      render: (_, record) => (
+        <Tooltip title="Copy guess text template">
+          <Button
+            type="text"
+            icon={<CopyOutlined />}
+            onClick={() => handleCopyGuessText(record)}
+          />
+        </Tooltip>
       ),
     },
   ]

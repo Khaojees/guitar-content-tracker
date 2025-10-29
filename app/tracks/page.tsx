@@ -66,10 +66,18 @@ export default async function TracksPage({
     if (whereClause.trackStatus) {
       whereClause.trackStatus.ignored = false
     } else {
-      whereClause.OR = [
-        { trackStatus: { ignored: false } },
-        { trackStatus: null },
-      ]
+      const ignoreFilter = {
+        OR: [
+          { trackStatus: { ignored: false } },
+          { trackStatus: null },
+        ],
+      }
+
+      if (whereClause.OR) {
+        whereClause.AND = [...(whereClause.AND || []), ignoreFilter]
+      } else {
+        whereClause.OR = ignoreFilter.OR
+      }
     }
   }
 

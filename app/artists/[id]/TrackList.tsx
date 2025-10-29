@@ -11,8 +11,10 @@ import {
   EyeInvisibleOutlined,
   EyeOutlined,
   YoutubeOutlined,
+  CopyOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
+import { buildGuessSongText } from '@/lib/guessSongText'
 import type { Prisma } from '@prisma/client'
 
 export type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
@@ -208,6 +210,18 @@ export default function TrackList({ tracks, layout = 'default', artistName }: Tr
     } catch (error) {
       console.error('Toggle ignored error:', error)
       messageApi.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะไม่สนใจ')
+    }
+  }
+
+  const handleCopyGuessText = async (trackName: string) => {
+    try {
+      await navigator.clipboard.writeText(
+        buildGuessSongText(trackName, artistName)
+      )
+      messageApi.success('Copied guess text to clipboard')
+    } catch (error) {
+      console.error('Copy guess text error:', error)
+      messageApi.error('Unable to copy guess text')
     }
   }
 
@@ -450,7 +464,15 @@ export default function TrackList({ tracks, layout = 'default', artistName }: Tr
                   )
                 })}
 
-                <Tooltip title="ค้นหาใน YouTube">
+                                <Tooltip title="Copy guess text template">
+                  <Button
+                    type="text"
+                    icon={<CopyOutlined />}
+                    onClick={() => handleCopyGuessText(track.name)}
+                  />
+                </Tooltip>
+
+<Tooltip title="ค้นหาใน YouTube">
                   <Button
                     type="text"
                     icon={<YoutubeOutlined className="text-red-500" />}
