@@ -8,25 +8,18 @@ import type { Prisma } from '@prisma/client'
 
 type ArtistWithCounts = Prisma.ArtistGetPayload<{
   include: {
-    albums: {
-      include: {
-        tracks: {
-          include: {
-            trackStatus: true
-          }
-        }
+    _count: {
+      select: {
+        tracks: true
       }
     }
   }
 }>
 
-type FilterType = 'all' | 'synced' | 'notSynced' | 'hasImportant'
+type FilterType = 'all'
 
 const FILTER_OPTIONS = [
   { label: 'ทั้งหมด', value: 'all' },
-  { label: 'เปิด Sync', value: 'synced' },
-  { label: 'ปิด Sync', value: 'notSynced' },
-  { label: 'มีเพลงติดดาว', value: 'hasImportant' },
 ]
 
 type ArtistsListProps = {
@@ -50,25 +43,7 @@ export default function ArtistsList({
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
   const [filter, setFilter] = useState<FilterType>(initialFilter as FilterType)
 
-  // Filter "hasImportant" locally since it requires complex calculation
-  const filteredArtists = useMemo(() => {
-    if (filter !== 'hasImportant') {
-      return artists
-    }
-
-    return artists.filter((artist) => {
-      const importantTracksCount = artist.albums.reduce((count, album) => {
-        return (
-          count +
-          album.tracks.filter(
-            (track) => track.trackStatus?.starred === true
-          ).length
-        )
-      }, 0)
-
-      return importantTracksCount > 0
-    })
-  }, [artists, filter])
+  const filteredArtists = artists
 
   const handleSearch = (value: string) => {
     const params = new URLSearchParams()
@@ -82,7 +57,6 @@ export default function ArtistsList({
     setFilter(value)
     const params = new URLSearchParams()
     if (searchTerm) params.set('search', searchTerm)
-    if (value !== 'all' && value !== 'hasImportant') params.set('filter', value)
     params.set('page', '1')
     router.push(`/artists?${params.toString()}`)
   }
@@ -90,7 +64,6 @@ export default function ArtistsList({
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams()
     if (searchTerm) params.set('search', searchTerm)
-    if (filter !== 'all' && filter !== 'hasImportant') params.set('filter', filter)
     params.set('page', page.toString())
     router.push(`/artists?${params.toString()}`)
   }
@@ -123,35 +96,9 @@ export default function ArtistsList({
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredArtists.map((artist) => {
-              const totalTracks = artist.albums.reduce(
-                (sum, album) => sum + album.tracks.length,
-                0
-              )
-
-              const importantTracksCount = artist.albums.reduce((count, album) => {
-                return (
-                  count +
-                  album.tracks.filter(
-                    (track) => track.trackStatus?.starred === true
-                  ).length
-                )
-              }, 0)
-
-              return (
-                <ArtistCard
-                  key={artist.id}
-                  artist={{
-                    id: artist.id,
-                    name: artist.name,
-                    imageUrl: artist.imageUrl,
-                    albumsCount: artist.albums.length,
-                    tracksCount: totalTracks,
-                    importantTracksCount,
-                  }}
-                />
-              )
-            })}
+            {filteredArtists.map((artist) => (
+              <ArtistCard key={artist.id} artist={artist} />
+            ))}
           </div>
 
           {totalPages > 1 && (

@@ -61,11 +61,7 @@ export async function POST(
       include: {
         track: {
           include: {
-            album: {
-              include: {
-                artist: true,
-              },
-            },
+            artist: true,
             trackStatus: true,
           },
         },

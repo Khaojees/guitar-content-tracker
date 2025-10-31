@@ -12,9 +12,9 @@ type ArtistCardProps = {
     id: number
     name: string
     imageUrl: string | null
-    albumsCount: number
-    tracksCount: number
-    importantTracksCount: number
+    _count: {
+      tracks: number
+    }
   }
 }
 
@@ -72,16 +72,8 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
           <div className="flex-1">
             <h3 className="font-semibold text-gray-900">{artist.name}</h3>
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
-              <Badge count={artist.albumsCount} showZero color="blue" />
-              <span>อัลบัม</span>
-              <Badge count={artist.tracksCount} showZero color="green" />
-              <span>เพลงทั้งหมด</span>
-              {artist.importantTracksCount > 0 && (
-                <>
-                  <Badge count={artist.importantTracksCount} color="red" />
-                  <span>ติดดาว</span>
-                </>
-              )}
+              <Badge count={artist._count.tracks} showZero color="green" />
+              <span>เพลงที่บันทึก</span>
             </div>
           </div>
         </div>

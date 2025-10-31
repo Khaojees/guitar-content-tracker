@@ -24,11 +24,7 @@ export async function GET(
           include: {
             track: {
               include: {
-                album: {
-                  include: {
-                    artist: true,
-                  },
-                },
+                artist: true,
                 trackStatus: true,
               },
             },

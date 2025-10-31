@@ -30,24 +30,13 @@ export default async function ArtistsPage({
     }
   }
 
-  // Filter by sync status
-  if (filter === 'synced') {
-    whereClause.syncEnabled = true
-  } else if (filter === 'notSynced') {
-    whereClause.syncEnabled = false
-  }
-
   const [artists, totalCount] = await Promise.all([
     prisma.artist.findMany({
       where: whereClause,
       include: {
-        albums: {
-          include: {
-            tracks: {
-              include: {
-                trackStatus: true,
-              },
-            },
+        _count: {
+          select: {
+            tracks: true,
           },
         },
       },

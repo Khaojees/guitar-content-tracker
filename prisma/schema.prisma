@@ -7,8 +7,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("POSTGRES_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ศิลปิน
@@ -16,51 +16,34 @@ model Artist {
   id        Int      @id @default(autoincrement())
   name      String
   imageUrl  String?
-  syncEnabled Boolean @default(true)
+  itunesId  String?  @unique // iTunes artist ID
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  albums  Album[]
-  sources Source[]
-
-  @@index([name])
-  @@index([syncEnabled])
-}
-
-// อัลบั้ม
-model Album {
-  id        Int      @id @default(autoincrement())
-  name      String
-  imageUrl  String?
-  artistId  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  artist Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
   tracks Track[]
-  sources Source[]
 
-  @@index([artistId])
   @@index([name])
 }
 
-// เพลง
+// เพลง (เก็บเฉพาะที่บันทึกจริงๆ)
 model Track {
-  id        Int      @id @default(autoincrement())
-  name      String
-  albumId   Int
-  duration  Int?     // milliseconds
+  id          Int      @id @default(autoincrement())
+  name        String
+  artistId    Int
+  albumName   String?  // ชื่ออัลบั้มแบบ plain text
+  albumImage  String?  // รูปอัลบั้ม
+  itunesId    String?  @unique // iTunes track ID
+  duration    Int?     // milliseconds
   trackNumber Int?
-  note      String?  // บันทึกรายละเอียดหรือไอเดียเสริม
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  note        String?  // บันทึกรายละเอียดหรือไอเดียเสริม
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  album         Album          @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  trackStatus   TrackStatus?
-  sources       Source[]
+  artist         Artist         @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  trackStatus    TrackStatus?
   playlistTracks PlaylistTrack[]
 
-  @@index([albumId])
+  @@index([artistId])
   @@index([name])
   @@index([createdAt])
 }
@@ -96,24 +79,6 @@ model PostLog {
 
   @@index([trackStatusId])
   @@index([platform])
-}
-
-// External IDs สำหรับกัน duplicate
-model Source {
-  id         Int      @id @default(autoincrement())
-  type       String   // itunes_artist, itunes_album, itunes_track
-  externalId String   // external ID จาก API
-  artistId   Int?
-  albumId    Int?
-  trackId    Int?
-  createdAt  DateTime @default(now())
-
-  artist Artist? @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  album  Album?  @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  track  Track?  @relation(fields: [trackId], references: [id], onDelete: Cascade)
-
-  @@unique([type, externalId])
-  @@index([type, externalId])
 }
 
 // Playlist

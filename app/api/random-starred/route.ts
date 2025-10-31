@@ -14,11 +14,7 @@ export async function GET(request: NextRequest) {
       include: {
         track: {
           include: {
-            album: {
-              include: {
-                artist: true,
-              },
-            },
+            artist: true,
           },
         },
       },
@@ -40,15 +36,12 @@ export async function GET(request: NextRequest) {
         id: selected.track.id,
         name: selected.track.name,
         duration: selected.track.duration,
-        album: {
-          id: selected.track.album.id,
-          name: selected.track.album.name,
-          imageUrl: selected.track.album.imageUrl,
-        },
+        albumName: selected.track.albumName,
+        albumImage: selected.track.albumImage,
         artist: {
-          id: selected.track.album.artist.id,
-          name: selected.track.album.artist.name,
-          imageUrl: selected.track.album.artist.imageUrl,
+          id: selected.track.artist.id,
+          name: selected.track.artist.name,
+          imageUrl: selected.track.artist.imageUrl,
         },
         status: selected.status,
         starred: selected.starred,

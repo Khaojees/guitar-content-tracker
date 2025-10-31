@@ -6,16 +6,12 @@ export async function GET() {
   try {
     const tracks = await prisma.track.findMany({
       include: {
-        album: {
-          include: {
-            artist: true,
-          },
-        },
+        artist: true,
         trackStatus: true,
       },
       orderBy: [
-        { album: { artist: { name: 'asc' } } },
-        { album: { name: 'asc' } },
+        { artist: { name: 'asc' } },
+        { albumName: 'asc' },
         { trackNumber: 'asc' },
       ],
     })

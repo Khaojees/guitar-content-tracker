@@ -1,103 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-type EntityType = 'musicArtist' | 'album' | 'song'
-
-const VALID_ENTITIES: EntityType[] = ['musicArtist', 'album', 'song']
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const entity = body?.entity as EntityType
-    const ids = (body?.ids ?? []) as Array<string | number>
+    const { entity, ids } = body
 
-    if (!entity || !VALID_ENTITIES.includes(entity)) {
-      return NextResponse.json(
-        { error: 'Invalid entity' },
-        { status: 400 }
-      )
-    }
-
-    if (!Array.isArray(ids) || ids.length === 0) {
+    if (!entity || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ existing: {} })
     }
 
-    const externalIds = ids.map((id) => String(id))
+    const existing: Record<string, any> = {}
 
     if (entity === 'musicArtist') {
-      const sources = await prisma.source.findMany({
+      // Check artists by itunesId
+      const artists = await prisma.artist.findMany({
         where: {
-          type: 'itunes_artist',
-          externalId: {
-            in: externalIds,
+          itunesId: {
+            in: ids.map(String),
           },
         },
         select: {
-          externalId: true,
-          artistId: true,
+          id: true,
+          itunesId: true,
         },
       })
 
-      return NextResponse.json({
-        existing: Object.fromEntries(
-          sources.map((source) => [
-            source.externalId,
-            { artistId: source.artistId },
-          ])
-        ),
+      artists.forEach((artist) => {
+        if (artist.itunesId) {
+          existing[artist.itunesId] = { artistId: artist.id }
+        }
       })
-    }
-
-    if (entity === 'album') {
-      const sources = await prisma.source.findMany({
+    } else if (entity === 'album') {
+      // Albums are not saved directly anymore, return empty
+      return NextResponse.json({ existing: {} })
+    } else if (entity === 'song') {
+      // Check tracks by itunesId
+      const tracks = await prisma.track.findMany({
         where: {
-          type: 'itunes_album',
-          externalId: {
-            in: externalIds,
+          itunesId: {
+            in: ids.map(String),
           },
         },
         select: {
-          externalId: true,
-          albumId: true,
+          id: true,
+          itunesId: true,
         },
       })
 
-      return NextResponse.json({
-        existing: Object.fromEntries(
-          sources.map((source) => [
-            source.externalId,
-            { albumId: source.albumId },
-          ])
-        ),
+      tracks.forEach((track) => {
+        if (track.itunesId) {
+          existing[track.itunesId] = { trackId: track.id }
+        }
       })
     }
 
-    const sources = await prisma.source.findMany({
-      where: {
-        type: 'itunes_track',
-        externalId: {
-          in: externalIds,
-        },
-      },
-      select: {
-        externalId: true,
-        trackId: true,
-      },
-    })
-
-    return NextResponse.json({
-      existing: Object.fromEntries(
-        sources.map((source) => [
-          source.externalId,
-          { trackId: source.trackId },
-        ])
-      ),
-    })
+    return NextResponse.json({ existing })
   } catch (error) {
-    console.error('Search status error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch search status' },
-      { status: 500 }
-    )
+    console.error('Check existing status error:', error)
+    return NextResponse.json({ existing: {} })
   }
 }

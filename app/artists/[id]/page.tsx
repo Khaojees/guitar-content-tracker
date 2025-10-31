@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import ArtistHeader from './ArtistHeader'
-import ArtistAlbums from './ArtistAlbums'
+import ArtistAlbumsRealtime from './ArtistAlbumsRealtime'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,23 +15,6 @@ export default async function ArtistDetailPage({
 
   const artist = await prisma.artist.findUnique({
     where: { id: artistId },
-    include: {
-      albums: {
-        include: {
-          tracks: {
-            include: {
-              trackStatus: true,
-            },
-            orderBy: {
-              trackNumber: 'asc',
-            },
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      },
-    },
   })
 
   if (!artist) {
@@ -41,7 +24,7 @@ export default async function ArtistDetailPage({
   return (
     <div className="space-y-8">
       <ArtistHeader artist={artist} />
-      <ArtistAlbums albums={artist.albums} artistName={artist.name} />
+      <ArtistAlbumsRealtime artistId={artist.id} artistName={artist.name} />
     </div>
   )
 }

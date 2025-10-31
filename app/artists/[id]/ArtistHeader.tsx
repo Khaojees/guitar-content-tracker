@@ -1,186 +1,45 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import { App, Card, Button } from 'antd'
 import {
   DeleteOutlined,
   ArrowLeftOutlined,
   ExclamationCircleOutlined,
-  SyncOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 import type { Prisma } from '@prisma/client'
 
 type ArtistWithLibrary = Prisma.ArtistGetPayload<{
-  include: {
-    albums: {
-      include: {
-        tracks: {
-          include: {
-            trackStatus: true
-          }
-        }
-      }
-    }
+  select: {
+    id: true
+    name: true
+    imageUrl: true
+    itunesId: true
   }
 }>
-
-type Metric = {
-  key: 'albums' | 'tracks' | 'important'
-  label: string
-  color: 'sky' | 'indigo' | 'emerald'
-}
-
-const METRIC_DEFINITIONS: Metric[] = [
-  { key: 'albums', label: 'อัลบัมทั้งหมด', color: 'sky' },
-  { key: 'tracks', label: 'เพลงทั้งหมด', color: 'indigo' },
-  { key: 'important', label: 'ติดดาว', color: 'emerald' },
-]
-
-const METRIC_COLORS = {
-  sky: {
-    bg: 'bg-sky-50',
-    text: 'text-sky-600',
-  },
-  indigo: {
-    bg: 'bg-indigo-50',
-    text: 'text-indigo-600',
-  },
-  emerald: {
-    bg: 'bg-emerald-50',
-    text: 'text-emerald-600',
-  },
-} as const
 
 export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) {
   const router = useRouter()
   const { modal, message } = App.useApp()
   const [deleting, setDeleting] = useState(false)
-  const [syncEnabled, setSyncEnabled] = useState<boolean>(artist.syncEnabled)
-  const [updatingSync, setUpdatingSync] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-
-  const importantTracks = useMemo(
-    () =>
-      artist.albums.flatMap((album) =>
-        album.tracks.filter((track) => {
-          return track.trackStatus?.starred === true
-        })
-      ),
-    [artist.albums]
-  )
-
-  const metrics = useMemo(() => {
-    const totals = {
-      albums: artist.albums.length,
-      tracks: artist.albums.reduce((sum, album) => sum + album.tracks.length, 0),
-      important: importantTracks.length,
-    }
-
-    return METRIC_DEFINITIONS.map((metric) => ({
-      ...metric,
-      value: totals[metric.key],
-    }))
-  }, [artist.albums, importantTracks.length])
-
-  const syncNow = async () => {
-    setSyncing(true)
-    try {
-      const response = await fetch(`/api/artist/${artist.id}/sync`, {
-        method: 'POST',
-      })
-
-      const data = await response.json()
-      if (response.ok) {
-        if (data.newTracks > 0 || data.newAlbums > 0) {
-          message.success(
-            `Synced ${data.newAlbums} new album(s) and ${data.newTracks} new track(s)`
-          )
-          router.refresh()
-        } else {
-          message.info('No new releases found')
-        }
-      } else {
-        message.error(data.error || 'Failed to sync artist')
-      }
-    } catch (error) {
-      console.error('Sync artist error:', error)
-      message.error('Unexpected error while syncing artist')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  const toggleSync = async () => {
-    const nextValue = !syncEnabled
-    setUpdatingSync(true)
-    try {
-      const response = await fetch(`/api/artist/${artist.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncEnabled: nextValue }),
-      })
-
-      const data = await response.json()
-      if (response.ok) {
-        setSyncEnabled(data.artist.syncEnabled)
-        message.success(
-          data.artist.syncEnabled
-            ? 'Automatic sync enabled for this artist'
-            : 'Automatic sync disabled for this artist'
-        )
-      } else {
-        message.error(data.error || 'Failed to update sync preference')
-      }
-    } catch (error) {
-      console.error('Update sync preference error:', error)
-      message.error('Unexpected error while updating sync preference')
-    } finally {
-      setUpdatingSync(false)
-    }
-  }
 
   const confirmDelete = () => {
-    const baseOptions = {
+    modal.confirm({
       icon: <ExclamationCircleOutlined className="text-amber-500" />,
       okButtonProps: { danger: true, loading: deleting },
       width: 600,
       onOk: deleteArtist,
-    }
-
-    if (importantTracks.length > 0) {
-      modal.confirm({
-        ...baseOptions,
-        title: 'ต้องการลบศิลปินคนนี้หรือไม่?',
-        content: (
-          <div className="space-y-3 text-sm text-slate-600">
-            <p>
-              ศิลปิน <span className="font-semibold text-slate-900">{artist.name}</span>{' '}
-              มีเพลงติดดาวอยู่ {importantTracks.length} เพลง หากลบข้อมูลจะหายทั้งหมด
-            </p>
-            <p>
-              โปรดตรวจสอบให้แน่ใจก่อนดำเนินการ เพราะการลบนี้จะลบเพลง สถานะ
-              และบันทึกทุกอย่างที่เกี่ยวข้องกับศิลปินคนนี้
-            </p>
-          </div>
-        ),
-        okText: 'ลบศิลปินและข้อมูลทั้งหมด',
-        cancelText: 'ยกเลิก',
-      })
-    } else {
-      modal.confirm({
-        ...baseOptions,
-        title: 'ลบศิลปินออกจากระบบ',
-        content: (
-          <p className="text-sm text-slate-600">
-            ศิลปิน {artist.name} ยังไม่มีเพลงติดดาวในระบบ หากลบแล้วสามารถเพิ่มใหม่ได้ในภายหลัง
-          </p>
-        ),
-        okText: 'ลบศิลปิน',
-        cancelText: 'ยกเลิก',
-      })
-    }
+      title: 'ลบศิลปินออกจากระบบ',
+      content: (
+        <p className="text-sm text-slate-600">
+          ต้องการลบศิลปิน "{artist.name}" และเพลงที่บันทึกไว้ทั้งหมดหรือไม่?
+        </p>
+      ),
+      okText: 'ลบศิลปิน',
+      cancelText: 'ยกเลิก',
+    })
   }
 
   const deleteArtist = async () => {
@@ -254,26 +113,6 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
               <span className="inline sm:hidden">กลับ</span>
             </Button>
             <Button
-              icon={<SyncOutlined spin={syncing} />}
-              onClick={syncNow}
-              loading={syncing}
-              type="primary"
-              className="rounded-full px-3 sm:px-4"
-              size="small"
-            >
-              Sync now
-            </Button>
-            <Button
-              icon={<SyncOutlined />}
-              onClick={toggleSync}
-              loading={updatingSync}
-              type={syncEnabled ? 'default' : 'default'}
-              className="rounded-full px-3 sm:px-4"
-              size="small"
-            >
-              {syncEnabled ? 'Auto: ON' : 'Auto: OFF'}
-            </Button>
-            <Button
               danger
               icon={<DeleteOutlined />}
               loading={deleting}
@@ -284,40 +123,8 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
               ลบศิลปิน
             </Button>
           </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            {metrics.map((metric) => (
-              <MetricPill
-                key={metric.key}
-                label={metric.label}
-                value={metric.value}
-                color={metric.color}
-              />
-            ))}
-          </div>
         </div>
       </div>
     </Card>
-  )
-}
-
-function MetricPill({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: number
-  color: 'sky' | 'indigo' | 'emerald'
-}) {
-  const palette = METRIC_COLORS[color]
-
-  return (
-    <div
-      className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-center shadow-sm sm:px-3 ${palette.bg}`}
-    >
-      <span className="text-[10px] uppercase tracking-wide text-slate-500 sm:text-[11px] sm:tracking-wider">{label}</span>
-      <span className={`text-base font-semibold sm:text-lg ${palette.text}`}>{value}</span>
-    </div>
   )
 }

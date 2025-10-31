@@ -30,20 +30,16 @@ export default async function TracksPage({
         },
       },
       {
-        album: {
-          name: {
-            contains: searchTerm,
-            mode: 'insensitive',
-          },
+        albumName: {
+          contains: searchTerm,
+          mode: 'insensitive',
         },
       },
       {
-        album: {
-          artist: {
-            name: {
-              contains: searchTerm,
-              mode: 'insensitive',
-            },
+        artist: {
+          name: {
+            contains: searchTerm,
+            mode: 'insensitive',
           },
         },
       },
@@ -85,11 +81,7 @@ export default async function TracksPage({
     prisma.track.findMany({
       where: whereClause,
       include: {
-        album: {
-          include: {
-            artist: true,
-          },
-        },
+        artist: true,
         trackStatus: true,
       },
       orderBy: {
@@ -106,9 +98,9 @@ export default async function TracksPage({
   const tableData: TrackRow[] = tracks.map((track) => ({
     id: track.id,
     name: track.name,
-    artistName: track.album.artist.name,
-    artistId: track.album.artist.id,
-    albumName: track.album.name,
+    artistName: track.artist.name,
+    artistId: track.artist.id,
+    albumName: track.albumName || 'Unknown Album',
     duration: track.duration,
     status: (track.trackStatus?.status as TrackStatusKey) || 'idea',
     starred: Boolean(track.trackStatus?.starred),

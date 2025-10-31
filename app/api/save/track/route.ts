@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { importTrackFromItunes } from '@/lib/itunes-import'
+import { prisma } from '@/lib/prisma'
+import { fetchTrackFromItunes, normalizeArtwork } from '@/lib/itunes'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { trackId } = body ?? {}
+    const { trackId, artistId: artistIdFromBody } = body ?? {}
 
     if (!trackId) {
       return NextResponse.json(
@@ -13,19 +14,87 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await importTrackFromItunes(Number(trackId))
+    const itunesTrackId = String(trackId)
+
+    // Check if track already exists
+    const existingTrack = await prisma.track.findUnique({
+      where: { itunesId: itunesTrackId },
+      include: { trackStatus: true },
+    })
+
+    if (existingTrack) {
+      return NextResponse.json({
+        message: 'Track already exists',
+        trackId: existingTrack.id,
+        artistId: existingTrack.artistId,
+        track: existingTrack,
+        created: false,
+      })
+    }
+
+    // Fetch track data from iTunes
+    const trackData = await fetchTrackFromItunes(trackId)
+
+    // Find or create artist
+    let artist = await prisma.artist.findUnique({
+      where: { itunesId: String(trackData.artistId) },
+    })
+
+    // If artistId is provided from body (e.g., from artist detail page), use that instead
+    if (artistIdFromBody) {
+      const existingArtist = await prisma.artist.findUnique({
+        where: { id: parseInt(artistIdFromBody) },
+      })
+      if (existingArtist) {
+        artist = existingArtist
+      }
+    }
+
+    if (!artist) {
+      // Create new artist if doesn't exist
+      artist = await prisma.artist.create({
+        data: {
+          name: trackData.artistName,
+          imageUrl: normalizeArtwork(trackData.artworkUrl100),
+          itunesId: String(trackData.artistId),
+        },
+      })
+    }
+
+    // Create track
+    const track = await prisma.track.create({
+      data: {
+        name: trackData.trackName,
+        artistId: artist.id,
+        albumName: trackData.collectionName,
+        albumImage: normalizeArtwork(trackData.artworkUrl100),
+        itunesId: itunesTrackId,
+        duration: trackData.trackTimeMillis,
+        trackNumber: trackData.trackNumber,
+        trackStatus: {
+          create: {
+            status: 'idea',
+            starred: false,
+            ignored: false,
+          },
+        },
+      },
+      include: {
+        trackStatus: true,
+      },
+    })
 
     return NextResponse.json({
-      message: result.created ? 'Track imported successfully' : 'Track already exists',
-      trackId: result.track.id,
-      albumId: result.album.id,
-      artistId: result.artist.id,
-      created: result.created,
+      message: 'Track saved successfully',
+      trackId: track.id,
+      artistId: artist.id,
+      track,
+      created: true,
     })
   } catch (error) {
     console.error('Save track error:', error)
     return NextResponse.json(
-      { error: 'Failed to import track' },
+      { error: 'Failed to save track' },
       { status: 500 }
     )
   }

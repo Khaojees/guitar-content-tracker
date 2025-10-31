@@ -150,17 +150,16 @@ export default function SearchPage() {
     const data = await response.json()
     if (response.ok) {
       if (data?.message === 'Artist already exists') {
-        message.info('Artist already exists in your library and will stay updated via sync.')
+        message.info('Artist already exists in your library.')
       } else {
-        const total = data.totalTracks ? ` (${data.totalTracks} tracks)` : ''
-        message.success(`Imported artist successfully${total}`)
+        message.success('Artist added successfully')
       }
       setStatusMap((prev) => ({
         ...prev,
         [idKey]: { artistId: data.artistId ?? null },
       }))
     } else {
-        message.error(data.error || 'Failed to import artist')
+        message.error(data.error || 'Failed to add artist')
       }
     } catch (error) {
       console.error('Save artist error:', error)
@@ -299,7 +298,6 @@ export default function SearchPage() {
     const isLoading = savingKey === loadingKey
 
     if (entity === 'musicArtist') {
-      const label = exists ? 'Sync artist' : 'Add artist'
       return [
         <Button
           key="save-artist"
@@ -307,15 +305,15 @@ export default function SearchPage() {
           icon={<SaveOutlined />}
           onClick={() => handleSaveArtist(item)}
           loading={isLoading}
+          disabled={exists}
           className="bg-emerald-500 shadow-sm shadow-emerald-500/30 hover:bg-emerald-600"
         >
-          {isLoading ? 'Saving...' : label}
+          {exists ? 'Added' : isLoading ? 'Adding...' : 'Add artist'}
         </Button>,
       ]
     }
 
     if (entity === 'album') {
-      const label = exists ? 'Sync album' : 'Add album'
       return [
         <Button
           key="save-album"
@@ -325,7 +323,7 @@ export default function SearchPage() {
           loading={isLoading}
           className="bg-indigo-500 shadow-sm shadow-indigo-500/30 hover:bg-indigo-600"
         >
-          {isLoading ? 'Saving...' : label}
+          {isLoading ? 'Adding...' : 'Add album'}
         </Button>,
       ]
     }
