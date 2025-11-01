@@ -4,23 +4,22 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     // Get all starred tracks with status 'idea' or 'ready'
-    const starredTracks = await prisma.trackStatus.findMany({
+    const tracks = await prisma.track.findMany({
       where: {
-        starred: true,
-        status: {
-          in: ['idea', 'ready'],
-        },
-      },
-      include: {
-        track: {
-          include: {
-            artist: true,
+        trackStatus: {
+          starred: true,
+          status: {
+            in: ['idea', 'ready'],
           },
         },
       },
+      include: {
+        artist: true,
+        trackStatus: true,
+      },
     })
 
-    if (starredTracks.length === 0) {
+    if (tracks.length === 0) {
       return NextResponse.json({
         message: 'No starred tracks available',
         track: null,
@@ -28,23 +27,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Random selection
-    const randomIndex = Math.floor(Math.random() * starredTracks.length)
-    const selected = starredTracks[randomIndex]
+    const randomIndex = Math.floor(Math.random() * tracks.length)
+    const selected = tracks[randomIndex]
 
     return NextResponse.json({
       track: {
-        id: selected.track.id,
-        name: selected.track.name,
-        duration: selected.track.duration,
-        albumName: selected.track.albumName,
-        albumImage: selected.track.albumImage,
+        id: selected.id,
+        name: selected.name,
+        duration: selected.duration,
         artist: {
-          id: selected.track.artist.id,
-          name: selected.track.artist.name,
-          imageUrl: selected.track.artist.imageUrl,
+          id: selected.artist.id,
+          name: selected.artist.name,
         },
-        status: selected.status,
-        starred: selected.starred,
+        album: {
+          name: selected.albumName,
+          imageUrl: selected.albumImage,
+        },
+        status: selected.trackStatus?.status || 'idea',
+        starred: selected.trackStatus?.starred || false,
       },
     })
   } catch (error) {

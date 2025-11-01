@@ -1,29 +1,31 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Image from 'next/image'
-import { App, Card, Button } from 'antd'
+import { useState } from "react";
+import Image from "next/image";
+import { App, Card, Button } from "antd";
 import {
   DeleteOutlined,
   ArrowLeftOutlined,
   ExclamationCircleOutlined,
-} from '@ant-design/icons'
-import { useRouter } from 'next/navigation'
-import type { Prisma } from '@prisma/client'
+} from "@ant-design/icons";
+import { useRouter } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 
-type ArtistWithLibrary = Prisma.ArtistGetPayload<{
-  select: {
-    id: true
-    name: true
-    imageUrl: true
-    itunesId: true
-  }
-}>
+type ArtistHeaderProps = {
+  id: number;
+  name: string;
+  imageUrl: string | null;
+  itunesId: string | null;
+};
 
-export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) {
-  const router = useRouter()
-  const { modal, message } = App.useApp()
-  const [deleting, setDeleting] = useState(false)
+export default function ArtistHeader({
+  artist,
+}: {
+  artist: ArtistHeaderProps;
+}) {
+  const router = useRouter();
+  const { modal, message } = App.useApp();
+  const [deleting, setDeleting] = useState(false);
 
   const confirmDelete = () => {
     modal.confirm({
@@ -31,37 +33,37 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
       okButtonProps: { danger: true, loading: deleting },
       width: 600,
       onOk: deleteArtist,
-      title: 'ลบศิลปินออกจากระบบ',
+      title: "ลบศิลปินออกจากระบบ",
       content: (
         <p className="text-sm text-slate-600">
           ต้องการลบศิลปิน "{artist.name}" และเพลงที่บันทึกไว้ทั้งหมดหรือไม่?
         </p>
       ),
-      okText: 'ลบศิลปิน',
-      cancelText: 'ยกเลิก',
-    })
-  }
+      okText: "ลบศิลปิน",
+      cancelText: "ยกเลิก",
+    });
+  };
 
   const deleteArtist = async () => {
-    setDeleting(true)
+    setDeleting(true);
     try {
       const response = await fetch(`/api/artist/${artist.id}`, {
-        method: 'DELETE',
-      })
+        method: "DELETE",
+      });
 
       if (response.ok) {
-        message.success('ลบศิลปินเรียบร้อยแล้ว')
-        router.push('/artists')
+        message.success("ลบศิลปินเรียบร้อยแล้ว");
+        router.push("/artists");
       } else {
-        message.error('ไม่สามารถลบศิลปินได้ กรุณาลองใหม่อีกครั้ง')
+        message.error("ไม่สามารถลบศิลปินได้ กรุณาลองใหม่อีกครั้ง");
       }
     } catch (error) {
-      console.error('Delete artist error:', error)
-      message.error('เกิดข้อผิดพลาดระหว่างลบศิลปิน')
+      console.error("Delete artist error:", error);
+      message.error("เกิดข้อผิดพลาดระหว่างลบศิลปิน");
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
-  }
+  };
 
   return (
     <Card className="glass-surface border-none bg-white/95">
@@ -105,7 +107,7 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
           <div className="flex flex-wrap gap-2">
             <Button
               icon={<ArrowLeftOutlined />}
-              onClick={() => router.push('/artists')}
+              onClick={() => router.push("/artists")}
               className="rounded-full border-slate-200 px-3 sm:px-4"
               size="small"
             >
@@ -126,5 +128,5 @@ export default function ArtistHeader({ artist }: { artist: ArtistWithLibrary }) 
         </div>
       </div>
     </Card>
-  )
+  );
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { App, Button, Empty, Input, Pagination, Segmented, Select, Table, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined, CopyOutlined } from '@ant-design/icons'
+import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined, CopyOutlined, DeleteOutlined } from '@ant-design/icons'
 import { buildGuessSongText } from '@/lib/guessSongText'
 
 export type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
@@ -68,7 +68,7 @@ export default function TracksTable({
   statusFilter: initialStatusFilter,
   showIgnored: initialShowIgnored
 }: TracksTableProps) {
-  const { message } = App.useApp()
+  const { modal, message } = App.useApp()
   const router = useRouter()
   const [rows, setRows] = useState(tracks)
   const savedNotesRef = useRef<Record<number, string>>(
@@ -201,10 +201,31 @@ export default function TracksTable({
           row.id === track.id ? { ...row, status: newStatus } : row
         )
       )
-      message.success('เปลี่ยนสถานะเรียบร้อย')
+      message.success('อัปเดตสถานะเรียบร้อย')
     } catch (error) {
       console.error('Update status error:', error)
-      message.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะ')
+      message.error('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ')
+    }
+  }
+
+  const handleDeleteTrack = async (track: TrackRow) => {
+    try {
+      const response = await fetch(`/api/track/${track.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        message.error('ไม่สามารถลบเพลงได้')
+        return
+      }
+
+      setRows((prev) => prev.filter((row) => row.id !== track.id))
+      delete savedNotesRef.current[track.id]
+      message.success('ลบเพลงเรียบร้อย')
+      router.refresh()
+    } catch (error) {
+      console.error('Delete track error:', error)
+      message.error('เกิดข้อผิดพลาดในการลบเพลง')
     }
   }
 
@@ -282,7 +303,7 @@ export default function TracksTable({
       render: (text) => <span className="text-gray-600">{text}</span>,
     },
     {
-      title: 'อัลบัม',
+      title: 'อัลบั้ม',
       dataIndex: 'albumName',
       key: 'albumName',
       render: (text) => <span className="text-gray-600">{text}</span>,
@@ -315,19 +336,19 @@ export default function TracksTable({
       ),
     },
     {
-      title: 'โน้ต',
+      title: 'หมายเหตุ',
       dataIndex: 'note',
       key: 'note',
       width: 250,
       render: (_, record) => {
-        const currentRow = rows.find(r => r.id === record.id)
+        const currentRow = rows.find((row) => row.id === record.id)
         const currentNote = currentRow?.note || ''
         const savedNote = savedNotesRef.current[record.id] ?? ''
 
         return (
           <Input.TextArea
             value={currentNote}
-            placeholder="เพิ่มโน้ต..."
+            placeholder="บันทึกเพิ่มเติม..."
             autoSize={{ minRows: 1, maxRows: 3 }}
             onChange={(e) => {
               setRows((prev) =>
@@ -358,7 +379,10 @@ export default function TracksTable({
           type="text"
           onClick={() => {
             const searchQuery = `${record.name} ${record.artistName}`
-            window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`, '_blank')
+            window.open(
+              `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`,
+              '_blank'
+            )
           }}
           icon={<YoutubeOutlined className="text-lg text-red-500" />}
         />
@@ -403,11 +427,33 @@ export default function TracksTable({
       ),
     },
     {
+      title: 'จัดการ',
+      key: 'action',
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          type="text"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => {
+            modal.confirm({
+              title: 'ยืนยันการลบ',
+              content: `ลบเพลง "${record.name}" ออกจากระบบ?`,
+              okText: 'ลบ',
+              okButtonProps: { danger: true },
+              cancelText: 'ยกเลิก',
+              onOk: () => handleDeleteTrack(record),
+            })
+          }}
+        />
+      ),
+    },
+    {
       title: '',
       key: 'copyGuessText',
       align: 'center',
       render: (_, record) => (
-        <Tooltip title="Copy guess text template">
+        <Tooltip title="คัดลอกข้อความทายเพลง">
           <Button
             type="text"
             icon={<CopyOutlined />}
@@ -418,20 +464,6 @@ export default function TracksTable({
     },
   ]
 
-  if (rows.length === 0) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white">
-        <div className="text-center">
-          <Empty description="ยังไม่มีเพลงในระบบ" />
-          <Link href="/search">
-            <Button type="primary" className="mt-4">
-              ไปหน้าเพิ่มเพลงใหม่
-            </Button>
-          </Link>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-4">
@@ -473,6 +505,19 @@ export default function TracksTable({
           rowKey="id"
           pagination={false}
           scroll={{ x: 'max-content' }}
+          locale={{
+            emptyText: (
+              <div className="py-12">
+                <Empty description="ยังไม่มีเพลงในระบบ">
+                  <Link href="/search">
+                    <Button type="primary" className="mt-4">
+                      ไปหน้าเพิ่มเพลงใหม่
+                    </Button>
+                  </Link>
+                </Empty>
+              </div>
+            ),
+          }}
         />
       </div>
 
