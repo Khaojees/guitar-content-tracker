@@ -3,16 +3,41 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get all starred tracks with status 'idea' or 'ready'
-    const tracks = await prisma.track.findMany({
-      where: {
+    const { searchParams } = new URL(request.url)
+    const mode = searchParams.get('mode') || 'starred'
+
+    let whereClause: any = {}
+
+    if (mode === 'starred') {
+      // Get all starred tracks with status 'idea' or 'ready'
+      whereClause = {
         trackStatus: {
           starred: true,
           status: {
             in: ['idea', 'ready'],
           },
         },
-      },
+      }
+    } else {
+      // mode === 'all': get all tracks but exclude 'posted' status
+      whereClause = {
+        OR: [
+          {
+            trackStatus: {
+              status: {
+                not: 'posted',
+              },
+            },
+          },
+          {
+            trackStatus: null,
+          },
+        ],
+      }
+    }
+
+    const tracks = await prisma.track.findMany({
+      where: whereClause,
       include: {
         artist: true,
         trackStatus: true,
@@ -21,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     if (tracks.length === 0) {
       return NextResponse.json({
-        message: 'No starred tracks available',
+        message: mode === 'starred' ? 'No starred tracks available' : 'No tracks available',
         track: null,
       })
     }
