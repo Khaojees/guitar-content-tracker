@@ -1,63 +1,80 @@
-'use client'
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { App, Button, Empty, Input, Pagination, Segmented, Select, Table, Tag, Tooltip } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import { StarFilled, StarOutlined, EyeInvisibleOutlined, EyeOutlined, YoutubeOutlined, CopyOutlined, DeleteOutlined } from '@ant-design/icons'
-import { buildGuessSongText } from '@/lib/guessSongText'
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  App,
+  Button,
+  Empty,
+  Input,
+  Pagination,
+  Segmented,
+  Select,
+  Table,
+  Tag,
+  Tooltip,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  StarFilled,
+  StarOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  YoutubeOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
+import { buildGuessSongText } from "@/lib/guessSongText";
 
-export type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
+export type TrackStatusKey = "idea" | "ready" | "recorded" | "posted";
 
 export type TrackRow = {
-  id: number
-  name: string
-  artistName: string
-  artistId: number
-  albumName: string
-  duration: number | null
-  status: TrackStatusKey
-  starred: boolean
-  ignored: boolean
-  note: string
-}
+  id: number;
+  name: string;
+  artistName: string;
+  artistId: number;
+  albumName: string;
+  duration: number | null;
+  status: TrackStatusKey;
+  starred: boolean;
+  ignored: boolean;
+  note: string;
+};
 
-const STATUS_CONFIG: Record<
-  TrackStatusKey,
-  { label: string; color: string }
-> = {
-  idea: { label: 'ไอเดีย', color: 'default' },
-  ready: { label: 'พร้อมทำงาน', color: 'blue' },
-  recorded: { label: 'อัดแล้ว', color: 'orange' },
-  posted: { label: 'เผยแพร่แล้ว', color: 'green' },
-}
+const STATUS_CONFIG: Record<TrackStatusKey, { label: string; color: string }> =
+  {
+    idea: { label: "ไอเดีย", color: "default" },
+    ready: { label: "พร้อมทำงาน", color: "blue" },
+    recorded: { label: "อัดแล้ว", color: "orange" },
+    posted: { label: "เผยแพร่แล้ว", color: "green" },
+  };
 
 const STATUS_FILTERS = [
-  { label: 'ทั้งหมด', value: 'all' },
-  { label: STATUS_CONFIG.idea.label, value: 'idea' },
-  { label: STATUS_CONFIG.ready.label, value: 'ready' },
-  { label: STATUS_CONFIG.recorded.label, value: 'recorded' },
-  { label: STATUS_CONFIG.posted.label, value: 'posted' },
-  { label: 'ติดดาว', value: 'starred' },
-]
+  { label: "ทั้งหมด", value: "all" },
+  { label: STATUS_CONFIG.idea.label, value: "idea" },
+  { label: STATUS_CONFIG.ready.label, value: "ready" },
+  { label: STATUS_CONFIG.recorded.label, value: "recorded" },
+  { label: STATUS_CONFIG.posted.label, value: "posted" },
+  { label: "ติดดาว", value: "starred" },
+];
 
 const formatDuration = (ms: number | null) => {
-  if (!ms) return '-'
-  const minutes = Math.floor(ms / 60000)
-  const seconds = Math.floor((ms % 60000) / 1000)
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-}
+  if (!ms) return "-";
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
 
 type TracksTableProps = {
-  tracks: TrackRow[]
-  currentPage: number
-  totalPages: number
-  totalCount: number
-  searchTerm: string
-  statusFilter: string
-  showIgnored: boolean
-}
+  tracks: TrackRow[];
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  searchTerm: string;
+  statusFilter: string;
+  showIgnored: boolean;
+};
 
 export default function TracksTable({
   tracks,
@@ -66,226 +83,232 @@ export default function TracksTable({
   totalCount,
   searchTerm: initialSearchTerm,
   statusFilter: initialStatusFilter,
-  showIgnored: initialShowIgnored
+  showIgnored: initialShowIgnored,
 }: TracksTableProps) {
-  const { modal, message } = App.useApp()
-  const router = useRouter()
-  const [rows, setRows] = useState(tracks)
+  const { modal, message } = App.useApp();
+  const router = useRouter();
+  const [rows, setRows] = useState(tracks);
   const savedNotesRef = useRef<Record<number, string>>(
-    Object.fromEntries(tracks.map((track) => [track.id, track.note || '']))
-  )
-  const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
+    Object.fromEntries(tracks.map((track) => [track.id, track.note || ""]))
+  );
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [statusFilter, setStatusFilter] = useState<
-    (typeof STATUS_FILTERS)[number]['value']
-  >(initialStatusFilter as (typeof STATUS_FILTERS)[number]['value'])
-  const [showIgnored, setShowIgnored] = useState(initialShowIgnored)
+    (typeof STATUS_FILTERS)[number]["value"]
+  >(initialStatusFilter as (typeof STATUS_FILTERS)[number]["value"]);
+  const [showIgnored, setShowIgnored] = useState(initialShowIgnored);
 
   useEffect(() => {
-    setRows(tracks)
+    setRows(tracks);
     savedNotesRef.current = Object.fromEntries(
-      tracks.map((track) => [track.id, track.note || ''])
-    )
-  }, [tracks])
+      tracks.map((track) => [track.id, track.note || ""])
+    );
+  }, [tracks]);
 
   const toggleStar = async (track: TrackRow) => {
     try {
-      const newStarred = !track.starred
+      const newStarred = !track.starred;
       const response = await fetch(`/api/track/${track.id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           starred: newStarred,
-          ...(newStarred && { ignored: false }) // ถ้าติด starred ให้ยกเลิก ignored
+          ...(newStarred && { ignored: false }), // ถ้าติด starred ให้ยกเลิก ignored
         }),
-      })
+      });
 
       if (!response.ok) {
-        message.error('ไม่สามารถติดดาวได้')
-        return
+        message.error("ไม่สามารถติดดาวได้");
+        return;
       }
 
       setRows((prev) =>
         prev.map((row) =>
           row.id === track.id
-            ? { ...row, starred: newStarred, ...(newStarred && { ignored: false }) }
+            ? {
+                ...row,
+                starred: newStarred,
+                ...(newStarred && { ignored: false }),
+              }
             : row
         )
-      )
-      message.success(
-        newStarred
-          ? 'ติดดาวเพลงนี้แล้ว'
-          : 'ถอดดาวเพลงนี้แล้ว'
-      )
+      );
+      message.success(newStarred ? "ติดดาวเพลงนี้แล้ว" : "ถอดดาวเพลงนี้แล้ว");
     } catch (error) {
-      console.error('Toggle star error:', error)
-      message.error('เกิดข้อผิดพลาดระหว่างติดดาว')
+      console.error("Toggle star error:", error);
+      message.error("เกิดข้อผิดพลาดระหว่างติดดาว");
     }
-  }
+  };
 
   const toggleIgnored = async (track: TrackRow) => {
     try {
-      const newIgnored = !track.ignored
+      const newIgnored = !track.ignored;
       const response = await fetch(`/api/track/${track.id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ignored: newIgnored,
-          ...(newIgnored && { starred: false }) // ถ้าติด ignored ให้ยกเลิก starred
+          ...(newIgnored && { starred: false }), // ถ้าติด ignored ให้ยกเลิก starred
         }),
-      })
+      });
 
       if (!response.ok) {
-        message.error('ไม่สามารถเปลี่ยนสถานะไม่สนใจได้')
-        return
+        message.error("ไม่สามารถเปลี่ยนสถานะไม่สนใจได้");
+        return;
       }
 
       setRows((prev) =>
         prev.map((row) =>
           row.id === track.id
-            ? { ...row, ignored: newIgnored, ...(newIgnored && { starred: false }) }
+            ? {
+                ...row,
+                ignored: newIgnored,
+                ...(newIgnored && { starred: false }),
+              }
             : row
         )
-      )
+      );
       message.success(
         newIgnored
-          ? 'ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว'
-          : 'เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย'
-      )
+          ? "ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว"
+          : "เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย"
+      );
     } catch (error) {
-      console.error('Toggle ignored error:', error)
-      message.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะไม่สนใจ')
+      console.error("Toggle ignored error:", error);
+      message.error("เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะไม่สนใจ");
     }
-  }
+  };
 
   const updateNote = async (track: TrackRow, newNote: string) => {
     try {
       const response = await fetch(`/api/track/${track.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ note: newNote }),
-      })
+      });
 
       if (!response.ok) {
-        message.error('ไม่สามารถอัปเดตโน้ตได้')
-        return
+        message.error("ไม่สามารถอัปเดตโน้ตได้");
+        return;
       }
 
       setRows((prev) =>
         prev.map((row) =>
           row.id === track.id ? { ...row, note: newNote } : row
         )
-      )
-      savedNotesRef.current[track.id] = newNote
-      message.success('อัปเดตโน้ตเรียบร้อย')
+      );
+      savedNotesRef.current[track.id] = newNote;
+      message.success("อัปเดตโน้ตเรียบร้อย");
     } catch (error) {
-      console.error('Update note error:', error)
-      message.error('เกิดข้อผิดพลาดระหว่างอัปเดตโน้ต')
+      console.error("Update note error:", error);
+      message.error("เกิดข้อผิดพลาดระหว่างอัปเดตโน้ต");
     }
-  }
+  };
 
   const updateStatus = async (track: TrackRow, newStatus: TrackStatusKey) => {
     try {
       const response = await fetch(`/api/track/${track.id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
-      })
+      });
 
       if (!response.ok) {
-        message.error('ไม่สามารถเปลี่ยนสถานะได้')
-        return
+        message.error("ไม่สามารถเปลี่ยนสถานะได้");
+        return;
       }
 
       setRows((prev) =>
         prev.map((row) =>
           row.id === track.id ? { ...row, status: newStatus } : row
         )
-      )
-      message.success('อัปเดตสถานะเรียบร้อย')
+      );
+      message.success("อัปเดตสถานะเรียบร้อย");
     } catch (error) {
-      console.error('Update status error:', error)
-      message.error('เกิดข้อผิดพลาดในการเปลี่ยนสถานะ')
+      console.error("Update status error:", error);
+      message.error("เกิดข้อผิดพลาดในการเปลี่ยนสถานะ");
     }
-  }
+  };
 
   const handleDeleteTrack = async (track: TrackRow) => {
     try {
       const response = await fetch(`/api/track/${track.id}`, {
-        method: 'DELETE',
-      })
+        method: "DELETE",
+      });
 
       if (!response.ok) {
-        message.error('ไม่สามารถลบเพลงได้')
-        return
+        message.error("ไม่สามารถลบเพลงได้");
+        return;
       }
 
-      setRows((prev) => prev.filter((row) => row.id !== track.id))
-      delete savedNotesRef.current[track.id]
-      message.success('ลบเพลงเรียบร้อย')
-      router.refresh()
+      setRows((prev) => prev.filter((row) => row.id !== track.id));
+      delete savedNotesRef.current[track.id];
+      message.success("ลบเพลงเรียบร้อย");
+      router.refresh();
     } catch (error) {
-      console.error('Delete track error:', error)
-      message.error('เกิดข้อผิดพลาดในการลบเพลง')
+      console.error("Delete track error:", error);
+      message.error("เกิดข้อผิดพลาดในการลบเพลง");
     }
-  }
+  };
 
   const handleSearch = (value: string) => {
-    const params = new URLSearchParams()
-    if (value) params.set('search', value)
-    if (statusFilter !== 'all') params.set('status', statusFilter)
-    if (showIgnored) params.set('showIgnored', 'true')
-    params.set('page', '1')
-    router.push(`/tracks?${params.toString()}`)
-  }
+    const params = new URLSearchParams();
+    if (value) params.set("search", value);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (showIgnored) params.set("showIgnored", "true");
+    params.set("page", "1");
+    router.push(`/tracks?${params.toString()}`);
+  };
 
-  const handleStatusFilterChange = (value: (typeof STATUS_FILTERS)[number]['value']) => {
-    setStatusFilter(value)
-    const params = new URLSearchParams()
-    if (searchTerm) params.set('search', searchTerm)
-    if (value !== 'all') params.set('status', value)
-    if (showIgnored) params.set('showIgnored', 'true')
-    params.set('page', '1')
-    router.push(`/tracks?${params.toString()}`)
-  }
+  const handleStatusFilterChange = (
+    value: (typeof STATUS_FILTERS)[number]["value"]
+  ) => {
+    setStatusFilter(value);
+    const params = new URLSearchParams();
+    if (searchTerm) params.set("search", searchTerm);
+    if (value !== "all") params.set("status", value);
+    if (showIgnored) params.set("showIgnored", "true");
+    params.set("page", "1");
+    router.push(`/tracks?${params.toString()}`);
+  };
 
   const handleToggleIgnored = () => {
-    const newShowIgnored = !showIgnored
-    setShowIgnored(newShowIgnored)
-    const params = new URLSearchParams()
-    if (searchTerm) params.set('search', searchTerm)
-    if (statusFilter !== 'all') params.set('status', statusFilter)
-    if (newShowIgnored) params.set('showIgnored', 'true')
-    params.set('page', '1')
-    router.push(`/tracks?${params.toString()}`)
-  }
+    const newShowIgnored = !showIgnored;
+    setShowIgnored(newShowIgnored);
+    const params = new URLSearchParams();
+    if (searchTerm) params.set("search", searchTerm);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (newShowIgnored) params.set("showIgnored", "true");
+    params.set("page", "1");
+    router.push(`/tracks?${params.toString()}`);
+  };
 
   const handlePageChange = (page: number) => {
-    const params = new URLSearchParams()
-    if (searchTerm) params.set('search', searchTerm)
-    if (statusFilter !== 'all') params.set('status', statusFilter)
-    if (showIgnored) params.set('showIgnored', 'true')
-    params.set('page', page.toString())
-    router.push(`/tracks?${params.toString()}`)
-  }
+    const params = new URLSearchParams();
+    if (searchTerm) params.set("search", searchTerm);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (showIgnored) params.set("showIgnored", "true");
+    params.set("page", page.toString());
+    router.push(`/tracks?${params.toString()}`);
+  };
 
   const handleCopyGuessText = async (track: TrackRow) => {
     try {
       await navigator.clipboard.writeText(
         buildGuessSongText(track.name, track.artistName)
-      )
-      message.success('Copied guess text to clipboard')
+      );
+      message.success("Copied guess text to clipboard");
     } catch (error) {
-      console.error('Copy guess text error:', error)
-      message.error('Unable to copy guess text')
+      console.error("Copy guess text error:", error);
+      message.error("Unable to copy guess text");
     }
-  }
+  };
 
   const columns: ColumnsType<TrackRow> = [
     {
-      title: 'เพลง',
-      dataIndex: 'name',
-      key: 'name',
-      fixed: 'left',
+      title: "เพลง",
+      dataIndex: "name",
+      key: "name",
+      fixed: "left",
       width: 200,
       render: (name, record) => (
         <Link
@@ -297,21 +320,21 @@ export default function TracksTable({
       ),
     },
     {
-      title: 'ศิลปิน',
-      dataIndex: 'artistName',
-      key: 'artistName',
+      title: "ศิลปิน",
+      dataIndex: "artistName",
+      key: "artistName",
       render: (text) => <span className="text-gray-600">{text}</span>,
     },
     {
-      title: 'อัลบั้ม',
-      dataIndex: 'albumName',
-      key: 'albumName',
+      title: "อัลบั้ม",
+      dataIndex: "albumName",
+      key: "albumName",
       render: (text) => <span className="text-gray-600">{text}</span>,
     },
     {
-      title: 'ความยาว',
-      dataIndex: 'duration',
-      key: 'duration',
+      title: "ความยาว",
+      dataIndex: "duration",
+      key: "duration",
       render: (duration) => (
         <span className="font-mono text-sm text-gray-600">
           {formatDuration(duration)}
@@ -319,9 +342,9 @@ export default function TracksTable({
       ),
     },
     {
-      title: 'สถานะ',
-      dataIndex: 'status',
-      key: 'status',
+      title: "สถานะ",
+      dataIndex: "status",
+      key: "status",
       render: (status: TrackStatusKey, record) => (
         <Select
           value={status}
@@ -336,14 +359,14 @@ export default function TracksTable({
       ),
     },
     {
-      title: 'หมายเหตุ',
-      dataIndex: 'note',
-      key: 'note',
+      title: "หมายเหตุ",
+      dataIndex: "note",
+      key: "note",
       width: 250,
       render: (_, record) => {
-        const currentRow = rows.find((row) => row.id === record.id)
-        const currentNote = currentRow?.note || ''
-        const savedNote = savedNotesRef.current[record.id] ?? ''
+        const currentRow = rows.find((row) => row.id === record.id);
+        const currentNote = currentRow?.note || "";
+        const savedNote = savedNotesRef.current[record.id] ?? "";
 
         return (
           <Input.TextArea
@@ -355,81 +378,83 @@ export default function TracksTable({
                 prev.map((row) =>
                   row.id === record.id ? { ...row, note: e.target.value } : row
                 )
-              )
+              );
             }}
             onBlur={(e) => {
               if (e.target.value !== savedNote) {
-                updateNote({ ...record, note: e.target.value }, e.target.value)
+                updateNote({ ...record, note: e.target.value }, e.target.value);
               }
             }}
             onPressEnter={(e) => {
-              e.currentTarget.blur()
+              e.currentTarget.blur();
             }}
             className="text-sm"
           />
-        )
+        );
       },
     },
     {
-      title: 'YouTube',
-      key: 'youtube',
-      align: 'center',
+      title: "YouTube",
+      key: "youtube",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
           onClick={() => {
-            const searchQuery = `${record.name} ${record.artistName}`
+            const searchQuery = `${record.name} ${record.artistName}`;
             window.open(
-              `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`,
-              '_blank'
-            )
+              `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                searchQuery
+              )}`,
+              "_blank"
+            );
           }}
-          icon={<YoutubeOutlined className="text-lg text-red-500" />}
+          icon={<YoutubeOutlined className="!text-lg !text-red-500" />}
         />
       ),
     },
     {
-      title: 'ติดดาว',
-      dataIndex: 'starred',
-      key: 'starred',
-      align: 'center',
+      title: "ติดดาว",
+      dataIndex: "starred",
+      key: "starred",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
           onClick={() => toggleStar(record)}
           icon={
             record.starred ? (
-              <StarFilled className="text-lg text-yellow-500" />
+              <StarFilled className="!text-lg !text-yellow-500" />
             ) : (
-              <StarOutlined className="text-lg text-gray-300" />
+              <StarOutlined className="!text-lg !text-gray-300" />
             )
           }
         />
       ),
     },
     {
-      title: 'ไม่สนใจ',
-      dataIndex: 'ignored',
-      key: 'ignored',
-      align: 'center',
+      title: "ไม่สนใจ",
+      dataIndex: "ignored",
+      key: "ignored",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
           onClick={() => toggleIgnored(record)}
           icon={
             record.ignored ? (
-              <EyeInvisibleOutlined className="text-lg text-gray-500" />
+              <EyeInvisibleOutlined className="!text-lg !text-gray-500" />
             ) : (
-              <EyeOutlined className="text-lg text-gray-300" />
+              <EyeOutlined className="!text-lg !text-gray-300" />
             )
           }
         />
       ),
     },
     {
-      title: 'จัดการ',
-      key: 'action',
-      align: 'center',
+      title: "จัดการ",
+      key: "action",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
@@ -437,21 +462,21 @@ export default function TracksTable({
           icon={<DeleteOutlined />}
           onClick={() => {
             modal.confirm({
-              title: 'ยืนยันการลบ',
+              title: "ยืนยันการลบ",
               content: `ลบเพลง "${record.name}" ออกจากระบบ?`,
-              okText: 'ลบ',
+              okText: "ลบ",
               okButtonProps: { danger: true },
-              cancelText: 'ยกเลิก',
+              cancelText: "ยกเลิก",
               onOk: () => handleDeleteTrack(record),
-            })
+            });
           }}
         />
       ),
     },
     {
-      title: '',
-      key: 'copyGuessText',
-      align: 'center',
+      title: "",
+      key: "copyGuessText",
+      align: "center",
       render: (_, record) => (
         <Tooltip title="คัดลอกข้อความทายเพลง">
           <Button
@@ -462,8 +487,7 @@ export default function TracksTable({
         </Tooltip>
       ),
     },
-  ]
-
+  ];
 
   return (
     <div className="space-y-4">
@@ -478,20 +502,26 @@ export default function TracksTable({
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <Button
-            type={showIgnored ? 'primary' : 'default'}
+            type={showIgnored ? "primary" : "default"}
             icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
             onClick={handleToggleIgnored}
             size="small"
-            className="self-start"
+            className="!self-start"
           >
-            <span className="hidden sm:inline">{showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}</span>
-            <span className="inline sm:hidden">{showIgnored ? 'แสดง' : 'ซ่อน'}ไม่สนใจ</span>
+            <span className="hidden sm:inline">
+              {showIgnored ? "แสดงเพลงไม่สนใจ" : "ซ่อนเพลงไม่สนใจ"}
+            </span>
+            <span className="inline sm:hidden">
+              {showIgnored ? "แสดง" : "ซ่อน"}ไม่สนใจ
+            </span>
           </Button>
           <div className="overflow-x-auto">
             <Segmented
               options={STATUS_FILTERS}
               value={statusFilter}
-              onChange={(value) => handleStatusFilterChange(value as typeof statusFilter)}
+              onChange={(value) =>
+                handleStatusFilterChange(value as typeof statusFilter)
+              }
               size="small"
             />
           </div>
@@ -504,7 +534,7 @@ export default function TracksTable({
           columns={columns}
           rowKey="id"
           pagination={false}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: "max-content" }}
           locale={{
             emptyText: (
               <div className="py-12">
@@ -536,5 +566,5 @@ export default function TracksTable({
         </div>
       )}
     </div>
-  )
+  );
 }

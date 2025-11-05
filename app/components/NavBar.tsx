@@ -1,6 +1,6 @@
 'use client'
 
-import { HomeOutlined, SearchOutlined, UserOutlined, UnorderedListOutlined, ThunderboltOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { HomeOutlined, SearchOutlined, UserOutlined, UnorderedListOutlined, ThunderboltOutlined, AppstoreOutlined, DashboardOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { key: '/tracks', icon: UnorderedListOutlined, label: 'เพลง' },
   { key: '/playlists', icon: AppstoreOutlined, label: 'Playlists' },
   { key: '/random', icon: ThunderboltOutlined, label: 'สุ่ม' },
+  { key: '/metronome', icon: DashboardOutlined, label: 'Metronome' },
 ]
 
 export default function NavBar() {
@@ -26,7 +27,8 @@ export default function NavBar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center">
-            <img src="/logo-landscape.svg" alt="Guitar Tracker" className="h-8" />
+            <img src="/logo-landscape-short.svg" alt="Guitar Tracker" className="h-8 sm:hidden" />
+            <img src="/logo-landscape.svg" alt="Guitar Tracker" className="hidden h-8 sm:block" />
           </Link>
 
           <nav className="flex space-x-1">

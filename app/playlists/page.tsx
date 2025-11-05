@@ -1,138 +1,138 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { App, Button, Card, Empty, Input, Modal, Spin } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useRouter } from 'next/navigation'
-import PlaylistCard from '../components/PlaylistCard'
+import { useEffect, useState } from "react";
+import { App, Button, Card, Empty, Input, Modal, Spin } from "antd";
+import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
+import PlaylistCard from "../components/PlaylistCard";
 
 type Playlist = {
-  id: number
-  name: string
-  description: string | null
+  id: number;
+  name: string;
+  description: string | null;
   playlistTracks: Array<{
     track: {
-      duration: number | null
-    }
-  }>
-}
+      duration: number | null;
+    };
+  }>;
+};
 
 export default function PlaylistsPage() {
-  const router = useRouter()
-  const { modal, message } = App.useApp()
-  const [playlists, setPlaylists] = useState<Playlist[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingPlaylist, setEditingPlaylist] = useState<Playlist | null>(null)
-  const [formName, setFormName] = useState('')
-  const [formDescription, setFormDescription] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const router = useRouter();
+  const { modal, message } = App.useApp();
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPlaylist, setEditingPlaylist] = useState<Playlist | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchPlaylists()
-  }, [])
+    fetchPlaylists();
+  }, []);
 
   const fetchPlaylists = async () => {
     try {
-      const response = await fetch('/api/playlist')
+      const response = await fetch("/api/playlist");
       if (response.ok) {
-        const data = await response.json()
-        setPlaylists(data)
+        const data = await response.json();
+        setPlaylists(data);
       }
     } catch (error) {
-      console.error('Error fetching playlists:', error)
-      message.error('ไม่สามารถโหลด playlist ได้')
+      console.error("Error fetching playlists:", error);
+      message.error("ไม่สามารถโหลด playlist ได้");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleCreate = () => {
-    setEditingPlaylist(null)
-    setFormName('')
-    setFormDescription('')
-    setIsModalOpen(true)
-  }
+    setEditingPlaylist(null);
+    setFormName("");
+    setFormDescription("");
+    setIsModalOpen(true);
+  };
 
   const handleEdit = (playlist: Playlist) => {
-    setEditingPlaylist(playlist)
-    setFormName(playlist.name)
-    setFormDescription(playlist.description || '')
-    setIsModalOpen(true)
-  }
+    setEditingPlaylist(playlist);
+    setFormName(playlist.name);
+    setFormDescription(playlist.description || "");
+    setIsModalOpen(true);
+  };
 
   const handleSubmit = async () => {
     if (!formName.trim()) {
-      message.error('กรุณาใส่ชื่อ playlist')
-      return
+      message.error("กรุณาใส่ชื่อ playlist");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       const url = editingPlaylist
         ? `/api/playlist/${editingPlaylist.id}`
-        : '/api/playlist'
-      const method = editingPlaylist ? 'PATCH' : 'POST'
+        : "/api/playlist";
+      const method = editingPlaylist ? "PATCH" : "POST";
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formName.trim(),
           description: formDescription.trim() || null,
         }),
-      })
+      });
 
       if (response.ok) {
         message.success(
-          editingPlaylist ? 'แก้ไข playlist สำเร็จ' : 'สร้าง playlist สำเร็จ'
-        )
-        setIsModalOpen(false)
-        fetchPlaylists()
+          editingPlaylist ? "แก้ไข playlist สำเร็จ" : "สร้าง playlist สำเร็จ"
+        );
+        setIsModalOpen(false);
+        fetchPlaylists();
       } else {
-        message.error('เกิดข้อผิดพลาด')
+        message.error("เกิดข้อผิดพลาด");
       }
     } catch (error) {
-      console.error('Error saving playlist:', error)
-      message.error('เกิดข้อผิดพลาด')
+      console.error("Error saving playlist:", error);
+      message.error("เกิดข้อผิดพลาด");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDelete = (playlist: Playlist) => {
     modal.confirm({
-      title: 'ยืนยันการลบ playlist',
+      title: "ยืนยันการลบ playlist",
       content: `คุณต้องการลบ playlist "${playlist.name}" ใช่หรือไม่?`,
-      okText: 'ลบ',
+      okText: "ลบ",
       okButtonProps: { danger: true },
-      cancelText: 'ยกเลิก',
+      cancelText: "ยกเลิก",
       onOk: async () => {
         try {
           const response = await fetch(`/api/playlist/${playlist.id}`, {
-            method: 'DELETE',
-          })
+            method: "DELETE",
+          });
 
           if (response.ok) {
-            message.success('ลบ playlist สำเร็จ')
-            fetchPlaylists()
+            message.success("ลบ playlist สำเร็จ");
+            fetchPlaylists();
           } else {
-            message.error('ไม่สามารถลบ playlist ได้')
+            message.error("ไม่สามารถลบ playlist ได้");
           }
         } catch (error) {
-          console.error('Error deleting playlist:', error)
-          message.error('เกิดข้อผิดพลาด')
+          console.error("Error deleting playlist:", error);
+          message.error("เกิดข้อผิดพลาด");
         }
       },
-    })
-  }
+    });
+  };
 
   if (loading) {
     return (
       <div className="flex justify-center py-12">
         <Spin size="large" />
       </div>
-    )
+    );
   }
 
   return (
@@ -160,7 +160,11 @@ export default function PlaylistsPage() {
             description="ยังไม่มี playlist"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreate}
+            >
               สร้าง Playlist แรก
             </Button>
           </Empty>
@@ -171,7 +175,7 @@ export default function PlaylistsPage() {
             const totalDuration = playlist.playlistTracks.reduce(
               (sum, pt) => sum + (pt.track.duration || 0),
               0
-            )
+            );
             return (
               <div key={playlist.id} className="relative group">
                 <PlaylistCard
@@ -187,10 +191,10 @@ export default function PlaylistsPage() {
                     size="small"
                     icon={<EditOutlined />}
                     onClick={(e) => {
-                      e.preventDefault()
-                      handleEdit(playlist)
+                      e.preventDefault();
+                      handleEdit(playlist);
                     }}
-                    className="bg-white shadow-sm"
+                    className="!bg-white !shadow-sm"
                   />
                   <Button
                     type="text"
@@ -198,25 +202,25 @@ export default function PlaylistsPage() {
                     danger
                     icon={<DeleteOutlined />}
                     onClick={(e) => {
-                      e.preventDefault()
-                      handleDelete(playlist)
+                      e.preventDefault();
+                      handleDelete(playlist);
                     }}
-                    className="bg-white shadow-sm"
+                    className="!bg-white !shadow-sm"
                   />
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       )}
 
       <Modal
-        title={editingPlaylist ? 'แก้ไข Playlist' : 'สร้าง Playlist ใหม่'}
+        title={editingPlaylist ? "แก้ไข Playlist" : "สร้าง Playlist ใหม่"}
         open={isModalOpen}
         onOk={handleSubmit}
         onCancel={() => setIsModalOpen(false)}
         confirmLoading={submitting}
-        okText={editingPlaylist ? 'บันทึก' : 'สร้าง'}
+        okText={editingPlaylist ? "บันทึก" : "สร้าง"}
         cancelText="ยกเลิก"
       >
         <div className="space-y-4 py-4">
@@ -245,5 +249,5 @@ export default function PlaylistsPage() {
         </div>
       </Modal>
     </div>
-  )
+  );
 }

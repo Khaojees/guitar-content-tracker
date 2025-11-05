@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from "react";
 import {
   Card,
   Input,
@@ -14,277 +14,296 @@ import {
   Tag,
   Alert,
   Spin,
-} from 'antd'
-import { SearchOutlined, SaveOutlined } from '@ant-design/icons'
+} from "antd";
+import { SearchOutlined, SaveOutlined } from "@ant-design/icons";
 
-const { Title, Paragraph, Text } = Typography
+const { Title, Paragraph, Text } = Typography;
 
 const ENTITY_OPTIONS = [
-  { value: 'musicArtist', label: 'Artists' },
-  { value: 'song', label: 'Songs' },
-  { value: 'album', label: 'Albums' },
-]
+  { value: "musicArtist", label: "Artists" },
+  { value: "song", label: "Songs" },
+  { value: "album", label: "Albums" },
+];
 
 const ENTITY_LABEL: Record<string, string> = {
-  musicArtist: 'Artist',
-  song: 'Song',
-  album: 'Album',
-}
+  musicArtist: "Artist",
+  song: "Song",
+  album: "Album",
+};
 
-type ExistingStatus = Record<string, any>
+type ExistingStatus = Record<string, any>;
 
-type SearchEntity = 'musicArtist' | 'song' | 'album'
+type SearchEntity = "musicArtist" | "song" | "album";
 
-type SearchResult = Record<string, any>
+type SearchResult = Record<string, any>;
 
 type AlbumTrack = {
-  trackId: number
-  trackName: string
-  trackNumber: number | null
-  trackTimeMillis: number | null
-}
+  trackId: number;
+  trackName: string;
+  trackNumber: number | null;
+  trackTimeMillis: number | null;
+};
 
 type AlbumTrackState = {
-  tracks?: AlbumTrack[]
-  loading: boolean
-  error?: string
-}
+  tracks?: AlbumTrack[];
+  loading: boolean;
+  error?: string;
+};
 
 const formatDuration = (milliseconds: number | null) => {
-  if (!milliseconds) return '-'
-  const minutes = Math.floor(milliseconds / 60000)
-  const seconds = Math.floor((milliseconds % 60000) / 1000)
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-}
+  if (!milliseconds) return "-";
+  const minutes = Math.floor(milliseconds / 60000);
+  const seconds = Math.floor((milliseconds % 60000) / 1000);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
 
 export default function SearchPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [searchEntity, setSearchEntity] = useState<SearchEntity>('musicArtist')
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [loading, setLoading] = useState(false)
-  const [savingKey, setSavingKey] = useState<string | null>(null)
-  const [statusMap, setStatusMap] = useState<ExistingStatus>({})
-  const [expandedAlbums, setExpandedAlbums] = useState<Record<number, boolean>>({})
-  const [albumTracks, setAlbumTracks] = useState<Record<number, AlbumTrackState>>({})
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchEntity, setSearchEntity] = useState<SearchEntity>("musicArtist");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [statusMap, setStatusMap] = useState<ExistingStatus>({});
+  const [expandedAlbums, setExpandedAlbums] = useState<Record<number, boolean>>(
+    {}
+  );
+  const [albumTracks, setAlbumTracks] = useState<
+    Record<number, AlbumTrackState>
+  >({});
 
-  const buildSavingKey = (type: string, id: string | number) => `${type}-${id}`
+  const buildSavingKey = (type: string, id: string | number) => `${type}-${id}`;
 
-  const fetchExistingStatus = async (entity: SearchEntity, items: SearchResult[]) => {
+  const fetchExistingStatus = async (
+    entity: SearchEntity,
+    items: SearchResult[]
+  ) => {
     const ids = items
       .map((item) => {
-        if (entity === 'musicArtist') return item.artistId
-        if (entity === 'album') return item.collectionId
-        return item.trackId
+        if (entity === "musicArtist") return item.artistId;
+        if (entity === "album") return item.collectionId;
+        return item.trackId;
       })
-      .filter((id) => id !== undefined && id !== null)
+      .filter((id) => id !== undefined && id !== null);
 
     if (ids.length === 0) {
-      return {}
+      return {};
     }
 
     try {
-      const response = await fetch('/api/search/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/search/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity, ids }),
-      })
-      const data = await response.json()
-      return data.existing ?? {}
+      });
+      const data = await response.json();
+      return data.existing ?? {};
     } catch (error) {
-      console.error('Existing status error:', error)
-      return {}
+      console.error("Existing status error:", error);
+      return {};
     }
-  }
+  };
 
   const handleSearch = async (event: React.FormEvent) => {
-    event.preventDefault()
-    const entity = searchEntity
-    setLoading(true)
-    setResults([])
-    setStatusMap({})
+    event.preventDefault();
+    const entity = searchEntity;
+    setLoading(true);
+    setResults([]);
+    setStatusMap({});
 
     try {
       const response = await fetch(
         `/api/search?term=${encodeURIComponent(searchTerm)}&entity=${entity}`
-      )
-      const data = await response.json()
-      const list = data.results || []
+      );
+      const data = await response.json();
+      const list = data.results || [];
 
       if (searchEntity !== entity) {
-        return
+        return;
       }
 
-      setResults(list)
-      setExpandedAlbums({})
-      setAlbumTracks({})
+      setResults(list);
+      setExpandedAlbums({});
+      setAlbumTracks({});
 
-      const existing = await fetchExistingStatus(entity, list)
+      const existing = await fetchExistingStatus(entity, list);
       if (searchEntity === entity) {
-        setStatusMap(existing)
+        setStatusMap(existing);
       }
     } catch (error) {
-      console.error('Search error:', error)
-      message.error('Unable to search iTunes. Please try again in a moment.')
+      console.error("Search error:", error);
+      message.error("Unable to search iTunes. Please try again in a moment.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSaveArtist = async (artist: SearchResult) => {
-    if (!artist?.artistId) return
-    const idKey = String(artist.artistId)
-    const savingToken = buildSavingKey('musicArtist', idKey)
-    setSavingKey(savingToken)
+    if (!artist?.artistId) return;
+    const idKey = String(artist.artistId);
+    const savingToken = buildSavingKey("musicArtist", idKey);
+    setSavingKey(savingToken);
 
-  try {
-    const response = await fetch('/api/save/artist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      const response = await fetch("/api/save/artist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           artistId: artist.artistId,
           artistName: artist.artistName,
           imageUrl: artist.artworkUrl100 || artist.artworkUrl60,
         }),
-      })
+      });
 
-    const data = await response.json()
-    if (response.ok) {
-      if (data?.message === 'Artist already exists') {
-        message.info('Artist already exists in your library.')
+      const data = await response.json();
+      if (response.ok) {
+        if (data?.message === "Artist already exists") {
+          message.info("Artist already exists in your library.");
+        } else {
+          message.success("Artist added successfully");
+        }
+        setStatusMap((prev) => ({
+          ...prev,
+          [idKey]: { artistId: data.artistId ?? null },
+        }));
       } else {
-        message.success('Artist added successfully')
-      }
-      setStatusMap((prev) => ({
-        ...prev,
-        [idKey]: { artistId: data.artistId ?? null },
-      }))
-    } else {
-        message.error(data.error || 'Failed to add artist')
+        message.error(data.error || "Failed to add artist");
       }
     } catch (error) {
-      console.error('Save artist error:', error)
-      message.error('Unexpected error while importing artist')
+      console.error("Save artist error:", error);
+      message.error("Unexpected error while importing artist");
     } finally {
-      setSavingKey(null)
+      setSavingKey(null);
     }
-  }
+  };
 
   const handleSaveAlbum = async (album: SearchResult) => {
-    if (!album?.collectionId) return
-    const idKey = String(album.collectionId)
-    const savingToken = buildSavingKey('album', idKey)
-    setSavingKey(savingToken)
+    if (!album?.collectionId) return;
+    const idKey = String(album.collectionId);
+    const savingToken = buildSavingKey("album", idKey);
+    setSavingKey(savingToken);
 
     try {
-      const response = await fetch('/api/save/album', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/save/album", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ collectionId: album.collectionId }),
-      })
-    const data = await response.json()
+      });
+      const data = await response.json();
 
-    if (response.ok) {
-      const trackCount = data.createdTrackCount ?? 0
-      const trackLabel = trackCount === 1 ? 'track' : 'tracks'
+      if (response.ok) {
+        const trackCount = data.createdTrackCount ?? 0;
+        const trackLabel = trackCount === 1 ? "track" : "tracks";
 
-      if (trackCount > 0 || data.createdAlbum) {
-        message.success(
-          `Imported album "${album.collectionName || 'Album'}" (${trackCount} ${trackLabel} added)`
-        )
+        if (trackCount > 0 || data.createdAlbum) {
+          message.success(
+            `Imported album "${
+              album.collectionName || "Album"
+            }" (${trackCount} ${trackLabel} added)`
+          );
+        } else {
+          message.info(
+            `Album "${
+              album.collectionName || "Album"
+            }" is already up to date in your library.`
+          );
+        }
+
+        setStatusMap((prev) => ({
+          ...prev,
+          [idKey]: { albumId: data.albumId },
+        }));
       } else {
-        message.info(
-          `Album "${album.collectionName || 'Album'}" is already up to date in your library.`
-        )
-      }
-
-      setStatusMap((prev) => ({
-        ...prev,
-        [idKey]: { albumId: data.albumId },
-      }))
-    } else {
-        message.error(data.error || 'Failed to import album')
+        message.error(data.error || "Failed to import album");
       }
     } catch (error) {
-      console.error('Save album error:', error)
-      message.error('Unexpected error while importing album')
+      console.error("Save album error:", error);
+      message.error("Unexpected error while importing album");
     } finally {
-      setSavingKey(null)
+      setSavingKey(null);
     }
-  }
+  };
 
   const handleSaveTrack = async (track: SearchResult) => {
-    if (!track?.trackId) return
-    const idKey = String(track.trackId)
-    const savingToken = buildSavingKey('song', idKey)
-    setSavingKey(savingToken)
+    if (!track?.trackId) return;
+    const idKey = String(track.trackId);
+    const savingToken = buildSavingKey("song", idKey);
+    setSavingKey(savingToken);
 
     try {
-      const response = await fetch('/api/save/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/save/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ trackId: track.trackId }),
-      })
-      const data = await response.json()
+      });
+      const data = await response.json();
 
       if (response.ok) {
         message.success(
           data.created
-            ? `Imported track “${track.trackName || 'Track'}”`
-            : 'Track already exists in your library'
-        )
+            ? `Imported track “${track.trackName || "Track"}”`
+            : "Track already exists in your library"
+        );
         setStatusMap((prev) => ({
           ...prev,
           [idKey]: { trackId: data.trackId },
-        }))
+        }));
       } else {
-        message.error(data.error || 'Failed to import track')
+        message.error(data.error || "Failed to import track");
       }
     } catch (error) {
-      console.error('Save track error:', error)
-      message.error('Unexpected error while importing track')
+      console.error("Save track error:", error);
+      message.error("Unexpected error while importing track");
     } finally {
-      setSavingKey(null)
+      setSavingKey(null);
     }
-  }
+  };
 
   const toggleAlbumDetails = async (collectionId: number) => {
-    const currentlyExpanded = expandedAlbums[collectionId]
+    const currentlyExpanded = expandedAlbums[collectionId];
     if (currentlyExpanded) {
-      setExpandedAlbums((prev) => ({ ...prev, [collectionId]: false }))
-      return
+      setExpandedAlbums((prev) => ({ ...prev, [collectionId]: false }));
+      return;
     }
 
-    setExpandedAlbums((prev) => ({ ...prev, [collectionId]: true }))
+    setExpandedAlbums((prev) => ({ ...prev, [collectionId]: true }));
 
     if (albumTracks[collectionId]?.tracks) {
-      return
+      return;
     }
 
     setAlbumTracks((prev) => ({
       ...prev,
-      [collectionId]: { ...(prev[collectionId] ?? {}), loading: true, error: undefined },
-    }))
+      [collectionId]: {
+        ...(prev[collectionId] ?? {}),
+        loading: true,
+        error: undefined,
+      },
+    }));
 
     try {
-      const response = await fetch(`/api/search/album/${collectionId}`)
-      const data = await response.json()
+      const response = await fetch(`/api/search/album/${collectionId}`);
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch album tracks')
+        throw new Error(data.error || "Failed to fetch album tracks");
       }
 
       setAlbumTracks((prev) => ({
         ...prev,
         [collectionId]: { tracks: data.tracks ?? [], loading: false },
-      }))
+      }));
     } catch (error) {
-      console.error('Album tracks fetch error:', error)
+      console.error("Album tracks fetch error:", error);
       setAlbumTracks((prev) => ({
         ...prev,
-        [collectionId]: { tracks: [], loading: false, error: 'Unable to load tracks' },
-      }))
-      message.error('Unable to load album tracks right now.')
+        [collectionId]: {
+          tracks: [],
+          loading: false,
+          error: "Unable to load tracks",
+        },
+      }));
+      message.error("Unable to load album tracks right now.");
     }
-  }
+  };
 
   const renderActions = (
     item: SearchResult,
@@ -292,12 +311,12 @@ export default function SearchPage() {
     idKey: string | null,
     exists: boolean
   ) => {
-    if (!idKey) return undefined
+    if (!idKey) return undefined;
 
-    const loadingKey = buildSavingKey(entity, idKey)
-    const isLoading = savingKey === loadingKey
+    const loadingKey = buildSavingKey(entity, idKey);
+    const isLoading = savingKey === loadingKey;
 
-    if (entity === 'musicArtist') {
+    if (entity === "musicArtist") {
       return [
         <Button
           key="save-artist"
@@ -306,14 +325,14 @@ export default function SearchPage() {
           onClick={() => handleSaveArtist(item)}
           loading={isLoading}
           disabled={exists}
-          className="bg-emerald-500 shadow-sm shadow-emerald-500/30 hover:bg-emerald-600"
+          className="!bg-emerald-500 !shadow-sm !shadow-emerald-500/30 hover:!bg-emerald-600"
         >
-          {exists ? 'Added' : isLoading ? 'Adding...' : 'Add artist'}
+          {exists ? "Added" : isLoading ? "Adding..." : "Add artist"}
         </Button>,
-      ]
+      ];
     }
 
-    if (entity === 'album') {
+    if (entity === "album") {
       return [
         <Button
           key="save-album"
@@ -321,11 +340,11 @@ export default function SearchPage() {
           icon={<SaveOutlined />}
           onClick={() => handleSaveAlbum(item)}
           loading={isLoading}
-          className="bg-indigo-500 shadow-sm shadow-indigo-500/30 hover:bg-indigo-600"
+          className="!bg-indigo-500 !shadow-sm !shadow-indigo-500/30 hover:!bg-indigo-600"
         >
-          {isLoading ? 'Adding...' : 'Add album'}
+          {isLoading ? "Adding..." : "Add album"}
         </Button>,
-      ]
+      ];
     }
 
     return [
@@ -336,12 +355,12 @@ export default function SearchPage() {
         onClick={() => handleSaveTrack(item)}
         loading={isLoading}
         disabled={exists}
-        className="bg-blue-500 shadow-sm shadow-blue-500/30 hover:bg-blue-600"
+        className="!bg-blue-500 !shadow-sm !shadow-blue-500/30 hover:!bg-blue-600"
       >
-        {exists ? 'Saved' : isLoading ? 'Saving...' : 'Add track'}
+        {exists ? "Saved" : isLoading ? "Saving..." : "Add track"}
       </Button>,
-    ]
-  }
+    ];
+  };
 
   return (
     <div className="space-y-10">
@@ -350,16 +369,21 @@ export default function SearchPage() {
           Search the iTunes catalog
         </Title>
         <Paragraph className="!mb-0 max-w-3xl text-slate-600">
-          Look up artists, albums, or individual tracks from iTunes and add only the pieces you
-          really need to your library. Perfect when you want to focus on a single release instead of
-          pulling an entire discography.
+          Look up artists, albums, or individual tracks from iTunes and add only
+          the pieces you really need to your library. Perfect when you want to
+          focus on a single release instead of pulling an entire discography.
         </Paragraph>
       </section>
 
       <Card className="glass-surface border-none bg-white/90">
-        <form onSubmit={handleSearch} className="grid gap-6 md:grid-cols-[2fr_1fr] md:items-end">
+        <form
+          onSubmit={handleSearch}
+          className="grid gap-6 md:grid-cols-[2fr_1fr] md:items-end"
+        >
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-600">Search term</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Search term
+            </label>
             <Input
               size="large"
               value={searchTerm}
@@ -370,7 +394,9 @@ export default function SearchPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-600">Result type</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Result type
+            </label>
             <Select
               size="large"
               value={searchEntity}
@@ -386,9 +412,9 @@ export default function SearchPage() {
             icon={<SearchOutlined />}
             htmlType="submit"
             loading={loading}
-            className="md:col-span-2"
+            className="md:!col-span-2"
           >
-            {loading ? 'Searching...' : 'Search'}
+            {loading ? "Searching..." : "Search"}
           </Button>
         </form>
       </Card>
@@ -398,11 +424,15 @@ export default function SearchPage() {
           title={
             <div className="flex items-center justify-between">
               <span className="text-slate-800">
-                Found {results.length} {ENTITY_LABEL[searchEntity].toLowerCase()} result
-                {results.length > 1 ? 's' : ''}
+                Found {results.length}{" "}
+                {ENTITY_LABEL[searchEntity].toLowerCase()} result
+                {results.length > 1 ? "s" : ""}
               </span>
               <Tag color="processing" className="!rounded-full !px-4 !py-1">
-                {ENTITY_OPTIONS.find((option) => option.value === searchEntity)?.label}
+                {
+                  ENTITY_OPTIONS.find((option) => option.value === searchEntity)
+                    ?.label
+                }
               </Tag>
             </div>
           }
@@ -412,80 +442,108 @@ export default function SearchPage() {
             itemLayout="horizontal"
             dataSource={results}
             renderItem={(item: SearchResult) => {
-              const entity = searchEntity
+              const entity = searchEntity;
               const idValue =
-                entity === 'musicArtist'
+                entity === "musicArtist"
                   ? item.artistId
-                  : entity === 'album'
+                  : entity === "album"
                   ? item.collectionId
-                  : item.trackId
+                  : item.trackId;
               const idKey =
-                idValue !== undefined && idValue !== null ? String(idValue) : null
-              const exists = idKey ? Boolean(statusMap[idKey]) : false
-              const actions = renderActions(item, entity, idKey, exists)
+                idValue !== undefined && idValue !== null
+                  ? String(idValue)
+                  : null;
+              const exists = idKey ? Boolean(statusMap[idKey]) : false;
+              const actions = renderActions(item, entity, idKey, exists);
 
               const primaryName =
-                entity === 'song'
-                  ? item.trackName || `${item.artistName ?? ''} - ${item.collectionName ?? ''}`.trim() || 'Unknown track'
-                  : entity === 'album'
-                  ? item.collectionName || 'Untitled album'
-                  : item.artistName || 'Unknown artist'
+                entity === "song"
+                  ? item.trackName ||
+                    `${item.artistName ?? ""} - ${
+                      item.collectionName ?? ""
+                    }`.trim() ||
+                    "Unknown track"
+                  : entity === "album"
+                  ? item.collectionName || "Untitled album"
+                  : item.artistName || "Unknown artist";
 
               const subtitle =
-                entity === 'song'
-                  ? [item.artistName, item.collectionName].filter(Boolean).join(' • ')
-                  : entity === 'album'
-                  ? item.artistName || ''
-                  : item.primaryGenreName || ''
+                entity === "song"
+                  ? [item.artistName, item.collectionName]
+                      .filter(Boolean)
+                      .join(" • ")
+                  : entity === "album"
+                  ? item.artistName || ""
+                  : item.primaryGenreName || "";
 
-              const descriptionItems: ReactNode[] = []
+              const descriptionItems: ReactNode[] = [];
 
-              if (entity === 'song') {
+              if (entity === "song") {
                 if (item.artistName) {
                   descriptionItems.push(
-                    <div key="artist">Artist: <span className="text-slate-700">{item.artistName}</span></div>
-                  )
+                    <div key="artist">
+                      Artist:{" "}
+                      <span className="text-slate-700">{item.artistName}</span>
+                    </div>
+                  );
                 }
                 if (item.collectionName) {
                   descriptionItems.push(
-                    <div key="album">Album: <span className="text-slate-700">{item.collectionName}</span></div>
-                  )
+                    <div key="album">
+                      Album:{" "}
+                      <span className="text-slate-700">
+                        {item.collectionName}
+                      </span>
+                    </div>
+                  );
                 }
               }
 
-              if (entity === 'album') {
+              if (entity === "album") {
                 if (item.artistName) {
                   descriptionItems.push(
-                    <div key="artist">Artist: <span className="text-slate-700">{item.artistName}</span></div>
-                  )
+                    <div key="artist">
+                      Artist:{" "}
+                      <span className="text-slate-700">{item.artistName}</span>
+                    </div>
+                  );
                 }
                 if (item.trackCount) {
                   descriptionItems.push(
                     <div key="track-count">
-                      Tracks on iTunes: <span className="text-slate-700">{item.trackCount}</span>
+                      Tracks on iTunes:{" "}
+                      <span className="text-slate-700">{item.trackCount}</span>
                     </div>
-                  )
+                  );
                 }
               }
 
-              if (entity === 'musicArtist' && item.primaryGenreName) {
-                descriptionItems.push(
-                  <div key="genre">Primary genre: <span className="text-slate-700">{item.primaryGenreName}</span></div>
-                )
-              }
-
-              if (item.primaryGenreName && entity !== 'musicArtist') {
+              if (entity === "musicArtist" && item.primaryGenreName) {
                 descriptionItems.push(
                   <div key="genre">
-                    Genre: <span className="text-slate-700">{item.primaryGenreName}</span>
+                    Primary genre:{" "}
+                    <span className="text-slate-700">
+                      {item.primaryGenreName}
+                    </span>
                   </div>
-                )
+                );
+              }
+
+              if (item.primaryGenreName && entity !== "musicArtist") {
+                descriptionItems.push(
+                  <div key="genre">
+                    Genre:{" "}
+                    <span className="text-slate-700">
+                      {item.primaryGenreName}
+                    </span>
+                  </div>
+                );
               }
 
               if (item.artistLinkUrl) {
                 descriptionItems.push(
                   <div key="itunes" className="truncate">
-                    iTunes:{' '}
+                    iTunes:{" "}
                     <a
                       href={item.artistLinkUrl}
                       target="_blank"
@@ -495,22 +553,24 @@ export default function SearchPage() {
                       {item.artistLinkUrl}
                     </a>
                   </div>
-                )
+                );
               }
 
               const albumState =
-                entity === 'album' && item.collectionId ? albumTracks[item.collectionId] : undefined
+                entity === "album" && item.collectionId
+                  ? albumTracks[item.collectionId]
+                  : undefined;
               const albumExpanded =
-                entity === 'album' && item.collectionId
+                entity === "album" && item.collectionId
                   ? Boolean(expandedAlbums[item.collectionId])
-                  : false
+                  : false;
 
               const trackList =
                 albumState?.tracks?.slice().sort((a, b) => {
-                  const aNumber = a.trackNumber ?? Number.MAX_SAFE_INTEGER
-                  const bNumber = b.trackNumber ?? Number.MAX_SAFE_INTEGER
-                  return aNumber - bNumber
-                }) ?? []
+                  const aNumber = a.trackNumber ?? Number.MAX_SAFE_INTEGER;
+                  const bNumber = b.trackNumber ?? Number.MAX_SAFE_INTEGER;
+                  return aNumber - bNumber;
+                }) ?? [];
 
               return (
                 <List.Item
@@ -533,7 +593,7 @@ export default function SearchPage() {
                             shape="square"
                             className="rounded-2xl bg-indigo-500 text-lg font-semibold text-white"
                           >
-                            {item.artistName?.slice(0, 2) || 'dY'}
+                            {item.artistName?.slice(0, 2) || "dY"}
                           </Avatar>
                         )
                       }
@@ -544,12 +604,19 @@ export default function SearchPage() {
                               {primaryName}
                             </span>
                             {exists && (
-                              <Tag color="success" className="!rounded-full !px-2 !text-xs">
+                              <Tag
+                                color="success"
+                                className="!rounded-full !px-2 !text-xs"
+                              >
                                 In library
                               </Tag>
                             )}
                           </div>
-                          {subtitle && <Text className="text-sm text-slate-500">{subtitle}</Text>}
+                          {subtitle && (
+                            <Text className="text-sm text-slate-500">
+                              {subtitle}
+                            </Text>
+                          )}
                         </div>
                       }
                       description={
@@ -561,7 +628,7 @@ export default function SearchPage() {
                       }
                     />
 
-                    {entity === 'album' && item.collectionId && (
+                    {entity === "album" && item.collectionId && (
                       <div className="rounded-xl border border-slate-200/70 bg-slate-50/70 p-3">
                         <div className="flex items-center justify-between">
                           <Text className="font-medium text-slate-700">
@@ -570,9 +637,11 @@ export default function SearchPage() {
                           <Button
                             size="small"
                             type="default"
-                            onClick={() => toggleAlbumDetails(item.collectionId)}
+                            onClick={() =>
+                              toggleAlbumDetails(item.collectionId)
+                            }
                           >
-                            {albumExpanded ? 'Hide tracks' : 'Show tracks'}
+                            {albumExpanded ? "Hide tracks" : "Show tracks"}
                           </Button>
                         </div>
                         {albumExpanded && (
@@ -583,13 +652,18 @@ export default function SearchPage() {
                               </div>
                             )}
                             {albumState?.error && !albumState.loading && (
-                              <Alert type="error" message={albumState.error} showIcon />
+                              <Alert
+                                type="error"
+                                message={albumState.error}
+                                showIcon
+                              />
                             )}
                             {!albumState?.loading && !albumState?.error && (
                               <div className="space-y-1">
                                 {trackList.length === 0 ? (
                                   <Text type="secondary" className="text-xs">
-                                    No tracks were returned from iTunes for this album.
+                                    No tracks were returned from iTunes for this
+                                    album.
                                   </Text>
                                 ) : (
                                   trackList.map((track) => (
@@ -598,7 +672,9 @@ export default function SearchPage() {
                                       className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs text-slate-600 shadow-sm"
                                     >
                                       <span>
-                                        {track.trackNumber ? `${track.trackNumber}. ` : ''}
+                                        {track.trackNumber
+                                          ? `${track.trackNumber}. `
+                                          : ""}
                                         {track.trackName}
                                       </span>
                                       <span className="font-mono text-[11px] text-slate-400">
@@ -615,7 +691,7 @@ export default function SearchPage() {
                     )}
                   </div>
                 </List.Item>
-              )
+              );
             }}
           />
         </Card>
@@ -630,5 +706,5 @@ export default function SearchPage() {
         </Card>
       )}
     </div>
-  )
+  );
 }

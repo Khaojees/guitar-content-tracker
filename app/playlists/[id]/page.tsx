@@ -1,9 +1,22 @@
-'use client'
+﻿"use client";
 
-import { useEffect, useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import { App, Button, Input, Modal, Select, Spin, Table, Tag, Empty, Tooltip, Segmented, Pagination } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import {
+  App,
+  Button,
+  Input,
+  Modal,
+  Select,
+  Spin,
+  Table,
+  Tag,
+  Empty,
+  Tooltip,
+  Segmented,
+  Pagination,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
 import {
   ArrowLeftOutlined,
   PlusOutlined,
@@ -14,128 +27,130 @@ import {
   EyeInvisibleOutlined,
   EyeOutlined,
   CopyOutlined,
-} from '@ant-design/icons'
-import Link from 'next/link'
-import { buildGuessSongText } from '@/lib/guessSongText'
+} from "@ant-design/icons";
+import Link from "next/link";
+import { buildGuessSongText } from "@/lib/guessSongText";
 
-type TrackStatusKey = 'idea' | 'ready' | 'recorded' | 'posted'
+type TrackStatusKey = "idea" | "ready" | "recorded" | "posted";
 
 type PlaylistTrack = {
-  id: number
+  id: number;
   track: {
-    id: number
-    name: string
-    duration: number | null
-    albumName: string | null
-    albumImage: string | null
-    note: string | null
+    id: number;
+    name: string;
+    duration: number | null;
+    albumName: string | null;
+    albumImage: string | null;
+    note: string | null;
     artist: {
-      id: number
-      name: string
-    }
+      id: number;
+      name: string;
+    };
     trackStatus: {
-      status: string
-      starred: boolean
-      ignored: boolean
-    } | null
-  }
-}
+      status: string;
+      starred: boolean;
+      ignored: boolean;
+    } | null;
+  };
+};
 
 type Playlist = {
-  id: number
-  name: string
-  description: string | null
-  playlistTracks: PlaylistTrack[]
-}
+  id: number;
+  name: string;
+  description: string | null;
+  playlistTracks: PlaylistTrack[];
+};
 
 type AvailableTrack = {
-  id: number
-  name: string
-  artistName: string
-  albumName: string
-}
+  id: number;
+  name: string;
+  artistName: string;
+  albumName: string;
+};
 
-const STATUS_CONFIG: Record<
-  TrackStatusKey,
-  { label: string; color: string }
-> = {
-  idea: { label: 'ไอเดีย', color: 'default' },
-  ready: { label: 'พร้อมทำงาน', color: 'blue' },
-  recorded: { label: 'อัดแล้ว', color: 'orange' },
-  posted: { label: 'เผยแพร่แล้ว', color: 'green' },
-}
+const STATUS_CONFIG: Record<TrackStatusKey, { label: string; color: string }> =
+  {
+    idea: { label: "ไอเดีย", color: "default" },
+    ready: { label: "พร้อมทำงาน", color: "blue" },
+    recorded: { label: "อัดแล้ว", color: "orange" },
+    posted: { label: "เผยแพร่แล้ว", color: "green" },
+  };
 
 const STATUS_FILTERS = [
-  { label: 'ทั้งหมด', value: 'all' },
-  { label: STATUS_CONFIG.idea.label, value: 'idea' },
-  { label: STATUS_CONFIG.ready.label, value: 'ready' },
-  { label: STATUS_CONFIG.recorded.label, value: 'recorded' },
-  { label: STATUS_CONFIG.posted.label, value: 'posted' },
-  { label: 'ติดดาว', value: 'starred' },
-]
+  { label: "ทั้งหมด", value: "all" },
+  { label: STATUS_CONFIG.idea.label, value: "idea" },
+  { label: STATUS_CONFIG.ready.label, value: "ready" },
+  { label: STATUS_CONFIG.recorded.label, value: "recorded" },
+  { label: STATUS_CONFIG.posted.label, value: "posted" },
+  { label: "ติดดาว", value: "starred" },
+];
 
 const formatDuration = (ms: number | null) => {
-  if (!ms) return '-'
-  const minutes = Math.floor(ms / 60000)
-  const seconds = Math.floor((ms % 60000) / 1000)
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
-}
+  if (!ms) return "-";
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
 
 export default function PlaylistDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
-  const router = useRouter()
-  const { modal, message } = App.useApp()
-  const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
-  const [playlist, setPlaylist] = useState<Playlist | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [availableTracks, setAvailableTracks] = useState<AvailableTrack[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null)
-  const [adding, setAdding] = useState(false)
-  const [showIgnored, setShowIgnored] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<'all' | TrackStatusKey | 'starred'>('all')
-  const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 50
+  const router = useRouter();
+  const { modal, message } = App.useApp();
+  const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(
+    null
+  );
+  const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [availableTracks, setAvailableTracks] = useState<AvailableTrack[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [showIgnored, setShowIgnored] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | TrackStatusKey | "starred"
+  >("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
-    params.then(setResolvedParams)
-  }, [params])
+    params.then(setResolvedParams);
+  }, [params]);
 
   useEffect(() => {
     if (resolvedParams) {
-      fetchPlaylist()
+      fetchPlaylist();
     }
-  }, [resolvedParams])
+  }, [resolvedParams]);
 
   const fetchPlaylist = async () => {
-    if (!resolvedParams) return
+    if (!resolvedParams) return;
 
     try {
-      const response = await fetch(`/api/playlist/${resolvedParams.id}`)
+      const response = await fetch(`/api/playlist/${resolvedParams.id}`);
       if (response.ok) {
-        const data = await response.json()
-        setPlaylist(data)
+        const data = await response.json();
+        setPlaylist(data);
       } else if (response.status === 404) {
-        message.error('ไม่พบ playlist')
-        router.push('/playlists')
+        message.error("ไม่พบ playlist");
+        router.push("/playlists");
       }
     } catch (error) {
-      console.error('Error fetching playlist:', error)
-      message.error('ไม่สามารถโหลด playlist ได้')
+      console.error("Error fetching playlist:", error);
+      message.error("ไม่สามารถโหลด playlist ได้");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchAvailableTracks = async () => {
     try {
-      const response = await fetch('/api/tracks')
+      const response = await fetch("/api/tracks");
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json();
         setAvailableTracks(
           data.map((track: any) => ({
             id: track.id,
@@ -143,109 +158,110 @@ export default function PlaylistDetailPage({
             artistName: track.album.artist.name,
             albumName: track.album.name,
           }))
-        )
+        );
       }
     } catch (error) {
-      console.error('Error fetching available tracks:', error)
+      console.error("Error fetching available tracks:", error);
     }
-  }
+  };
 
   const handleAddTrack = async () => {
-    if (!selectedTrackId || !resolvedParams) return
+    if (!selectedTrackId || !resolvedParams) return;
 
-    setAdding(true)
+    setAdding(true);
     try {
-      const response = await fetch(`/api/playlist/${resolvedParams.id}/tracks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackId: selectedTrackId }),
-      })
+      const response = await fetch(
+        `/api/playlist/${resolvedParams.id}/tracks`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trackId: selectedTrackId }),
+        }
+      );
 
       if (response.ok) {
-        message.success('เพิ่มเพลงสำเร็จ')
-        setIsAddModalOpen(false)
-        setSelectedTrackId(null)
-        fetchPlaylist()
+        message.success("เพิ่มเพลงสำเร็จ");
+        setIsAddModalOpen(false);
+        setSelectedTrackId(null);
+        fetchPlaylist();
       } else {
-        const error = await response.json()
-        message.error(error.error || 'ไม่สามารถเพิ่มเพลงได้')
+        const error = await response.json();
+        message.error(error.error || "ไม่สามารถเพิ่มเพลงได้");
       }
     } catch (error) {
-      console.error('Error adding track:', error)
-      message.error('เกิดข้อผิดพลาด')
+      console.error("Error adding track:", error);
+      message.error("เกิดข้อผิดพลาด");
     } finally {
-      setAdding(false)
+      setAdding(false);
     }
-  }
+  };
 
   const handleRemoveTrack = async (trackId: number) => {
-    if (!resolvedParams) return
+    if (!resolvedParams) return;
 
     try {
       const response = await fetch(
         `/api/playlist/${resolvedParams.id}/tracks?trackId=${trackId}`,
-        { method: 'DELETE' }
-      )
+        { method: "DELETE" }
+      );
 
       if (response.ok) {
-        message.success('ลบเพลงสำเร็จ')
-        fetchPlaylist()
+        message.success("ลบเพลงสำเร็จ");
+        fetchPlaylist();
       } else {
-        message.error('ไม่สามารถลบเพลงได้')
+        message.error("ไม่สามารถลบเพลงได้");
       }
     } catch (error) {
-      console.error('Error removing track:', error)
-      message.error('เกิดข้อผิดพลาด')
+      console.error("Error removing track:", error);
+      message.error("เกิดข้อผิดพลาด");
     }
-  }
+  };
 
   const toggleStar = async (trackId: number, currentStarred: boolean) => {
     try {
       const response = await fetch(`/api/track/${trackId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ starred: !currentStarred }),
-      })
+      });
 
       if (response.ok) {
         message.success(
-          !currentStarred
-            ? 'ติดดาวเพลงนี้แล้ว'
-            : 'ถอดดาวเพลงนี้แล้ว'
-        )
-        fetchPlaylist()
+          !currentStarred ? "ติดดาวเพลงนี้แล้ว" : "ถอดดาวเพลงนี้แล้ว"
+        );
+        fetchPlaylist();
       } else {
-        message.error('ไม่สามารถติดดาวได้')
+        message.error("ไม่สามารถติดดาวได้");
       }
     } catch (error) {
-      console.error('Toggle star error:', error)
-      message.error('เกิดข้อผิดพลาด')
+      console.error("Toggle star error:", error);
+      message.error("เกิดข้อผิดพลาด");
     }
-  }
+  };
 
   const toggleIgnored = async (trackId: number, currentIgnored: boolean) => {
     try {
       const response = await fetch(`/api/track/${trackId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ignored: !currentIgnored }),
-      })
+      });
 
       if (response.ok) {
         message.success(
           !currentIgnored
-            ? 'ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว'
-            : 'เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย'
-        )
-        fetchPlaylist()
+            ? "ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว"
+            : "เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย"
+        );
+        fetchPlaylist();
       } else {
-        message.error('ไม่สามารถเปลี่ยนสถานะไม่สนใจได้')
+        message.error("ไม่สามารถเปลี่ยนสถานะไม่สนใจได้");
       }
     } catch (error) {
-      console.error('Toggle ignored error:', error)
-      message.error('เกิดข้อผิดพลาด')
+      console.error("Toggle ignored error:", error);
+      message.error("เกิดข้อผิดพลาด");
     }
-  }
+  };
 
   const handleCopyGuessText = async (playlistTrack: PlaylistTrack) => {
     try {
@@ -254,74 +270,72 @@ export default function PlaylistDetailPage({
           playlistTrack.track.name,
           playlistTrack.track.artist.name
         )
-      )
-      message.success('Copied guess text to clipboard')
+      );
+      message.success("Copied guess text to clipboard");
     } catch (error) {
-      console.error('Copy guess text error:', error)
-      message.error('Unable to copy guess text')
+      console.error("Copy guess text error:", error);
+      message.error("Unable to copy guess text");
     }
-  }
+  };
 
   const updateStatus = async (trackId: number, newStatus: TrackStatusKey) => {
     try {
       const response = await fetch(`/api/track/${trackId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
-      })
+      });
 
       if (response.ok) {
-        message.success('เปลี่ยนสถานะเรียบร้อย')
-        fetchPlaylist()
+        message.success("เปลี่ยนสถานะเรียบร้อย");
+        fetchPlaylist();
       } else {
-        message.error('ไม่สามารถเปลี่ยนสถานะได้')
+        message.error("ไม่สามารถเปลี่ยนสถานะได้");
       }
     } catch (error) {
-      console.error('Update status error:', error)
-      message.error('เกิดข้อผิดพลาด')
+      console.error("Update status error:", error);
+      message.error("เกิดข้อผิดพลาด");
     }
-  }
+  };
 
   // Filter and paginate tracks
   const filteredTracks = useMemo(() => {
-    if (!playlist) return []
+    if (!playlist) return [];
 
-    let tracks = playlist.playlistTracks
+    let tracks = playlist.playlistTracks;
 
     // Filter by ignored status
     if (!showIgnored) {
-      tracks = tracks.filter(
-        (pt) => !pt.track.trackStatus?.ignored
-      )
+      tracks = tracks.filter((pt) => !pt.track.trackStatus?.ignored);
     }
 
     // Filter by status
-    if (statusFilter === 'starred') {
-      tracks = tracks.filter((pt) => pt.track.trackStatus?.starred)
-    } else if (statusFilter !== 'all') {
+    if (statusFilter === "starred") {
+      tracks = tracks.filter((pt) => pt.track.trackStatus?.starred);
+    } else if (statusFilter !== "all") {
       tracks = tracks.filter(
         (pt) => pt.track.trackStatus?.status === statusFilter
-      )
+      );
     }
 
-    return tracks
-  }, [playlist, showIgnored, statusFilter])
+    return tracks;
+  }, [playlist, showIgnored, statusFilter]);
 
   // Paginated tracks
   const paginatedTracks = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-    const endIndex = startIndex + ITEMS_PER_PAGE
-    return filteredTracks.slice(startIndex, endIndex)
-  }, [filteredTracks, currentPage, ITEMS_PER_PAGE])
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredTracks.slice(startIndex, endIndex);
+  }, [filteredTracks, currentPage, ITEMS_PER_PAGE]);
 
-  const totalPages = Math.ceil(filteredTracks.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredTracks.length / ITEMS_PER_PAGE);
 
   const columns: ColumnsType<PlaylistTrack> = [
     {
-      title: 'เพลง',
-      dataIndex: ['track', 'name'],
-      key: 'name',
-      fixed: 'left',
+      title: "เพลง",
+      dataIndex: ["track", "name"],
+      key: "name",
+      fixed: "left",
       width: 200,
       render: (name, record) => (
         <Link
@@ -333,21 +347,21 @@ export default function PlaylistDetailPage({
       ),
     },
     {
-      title: 'ศิลปิน',
-      dataIndex: ['track', 'artist', 'name'],
-      key: 'artist',
+      title: "ศิลปิน",
+      dataIndex: ["track", "artist", "name"],
+      key: "artist",
       render: (text) => <span className="text-gray-600">{text}</span>,
     },
     {
-      title: 'อัลบัม',
-      dataIndex: ['track', 'albumName'],
-      key: 'album',
+      title: "อัลบัม",
+      dataIndex: ["track", "albumName"],
+      key: "album",
       render: (text) => <span className="text-gray-600">{text}</span>,
     },
     {
-      title: 'ความยาว',
-      dataIndex: ['track', 'duration'],
-      key: 'duration',
+      title: "ความยาว",
+      dataIndex: ["track", "duration"],
+      key: "duration",
       render: (duration) => (
         <span className="font-mono text-sm text-gray-600">
           {formatDuration(duration)}
@@ -355,11 +369,11 @@ export default function PlaylistDetailPage({
       ),
     },
     {
-      title: 'สถานะ',
-      dataIndex: ['track', 'trackStatus', 'status'],
-      key: 'status',
+      title: "สถานะ",
+      dataIndex: ["track", "trackStatus", "status"],
+      key: "status",
       render: (status: string | undefined, record) => {
-        const statusKey = (status || 'idea') as TrackStatusKey
+        const statusKey = (status || "idea") as TrackStatusKey;
         return (
           <Select
             value={statusKey}
@@ -371,38 +385,42 @@ export default function PlaylistDetailPage({
               label: config.label,
             }))}
           />
-        )
+        );
       },
     },
     {
-      title: 'หมายเหตุ',
-      dataIndex: ['track', 'note'],
-      key: 'note',
+      title: "หมายเหตุ",
+      dataIndex: ["track", "note"],
+      key: "note",
       width: 250,
-      render: (text) => <span className="text-gray-600 text-sm">{text || '-'}</span>,
+      render: (text) => (
+        <span className="text-gray-600 text-sm">{text || "-"}</span>
+      ),
     },
     {
-      title: 'YouTube',
-      key: 'youtube',
-      align: 'center',
+      title: "YouTube",
+      key: "youtube",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
           onClick={() => {
-            const searchQuery = `${record.track.name} ${record.track.artist.name}`
+            const searchQuery = `${record.track.name} ${record.track.artist.name}`;
             window.open(
-              `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`,
-              '_blank'
-            )
+              `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                searchQuery
+              )}`,
+              "_blank"
+            );
           }}
-          icon={<YoutubeOutlined className="text-lg text-red-500" />}
+          icon={<YoutubeOutlined className="!text-lg !text-red-500" />}
         />
       ),
     },
     {
-      title: 'ติดดาว',
-      key: 'starred',
-      align: 'center',
+      title: "ติดดาว",
+      key: "starred",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
@@ -414,18 +432,18 @@ export default function PlaylistDetailPage({
           }
           icon={
             record.track.trackStatus?.starred ? (
-              <StarFilled className="text-lg text-yellow-500" />
+              <StarFilled className="!text-lg !text-yellow-500" />
             ) : (
-              <StarOutlined className="text-lg text-gray-300" />
+              <StarOutlined className="!text-lg !text-gray-300" />
             )
           }
         />
       ),
     },
     {
-      title: 'ไม่สนใจ',
-      key: 'ignored',
-      align: 'center',
+      title: "ไม่สนใจ",
+      key: "ignored",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
@@ -437,18 +455,18 @@ export default function PlaylistDetailPage({
           }
           icon={
             record.track.trackStatus?.ignored ? (
-              <EyeInvisibleOutlined className="text-lg text-gray-500" />
+              <EyeInvisibleOutlined className="!text-lg !text-gray-500" />
             ) : (
-              <EyeOutlined className="text-lg text-gray-300" />
+              <EyeOutlined className="!text-lg !text-gray-300" />
             )
           }
         />
       ),
     },
     {
-      title: 'จัดการ',
-      key: 'action',
-      align: 'center',
+      title: "จัดการ",
+      key: "action",
+      align: "center",
       render: (_, record) => (
         <Button
           type="text"
@@ -456,21 +474,21 @@ export default function PlaylistDetailPage({
           icon={<DeleteOutlined />}
           onClick={() => {
             modal.confirm({
-              title: 'ยืนยันการลบ',
+              title: "ยืนยันการลบ",
               content: `ลบเพลง "${record.track.name}" ออกจาก playlist?`,
-              okText: 'ลบ',
+              okText: "ลบ",
               okButtonProps: { danger: true },
-              cancelText: 'ยกเลิก',
+              cancelText: "ยกเลิก",
               onOk: () => handleRemoveTrack(record.track.id),
-            })
+            });
           }}
         />
       ),
     },
     {
-      title: '',
-      key: 'copyGuessText',
-      align: 'center',
+      title: "",
+      key: "copyGuessText",
+      align: "center",
       render: (_, record) => (
         <Tooltip title="คัดลอกข้อความทายเพลง">
           <Button
@@ -481,17 +499,17 @@ export default function PlaylistDetailPage({
         </Tooltip>
       ),
     },
-  ]
+  ];
 
   if (loading || !playlist) {
     return (
       <div className="flex justify-center py-12">
         <Spin size="large" />
       </div>
-    )
+    );
   }
 
-  const trackIdsInPlaylist = playlist.playlistTracks.map((pt) => pt.track.id)
+  const trackIdsInPlaylist = playlist.playlistTracks.map((pt) => pt.track.id);
   const filteredAvailableTracks = availableTracks.filter(
     (track) =>
       !trackIdsInPlaylist.includes(track.id) &&
@@ -499,7 +517,7 @@ export default function PlaylistDetailPage({
         ? track.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           track.artistName.toLowerCase().includes(searchTerm.toLowerCase())
         : true)
-  )
+  );
 
   return (
     <div className="space-y-6">
@@ -507,16 +525,20 @@ export default function PlaylistDetailPage({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
           <Button
             icon={<ArrowLeftOutlined />}
-            onClick={() => router.push('/playlists')}
+            onClick={() => router.push("/playlists")}
             size="small"
-            className="self-start"
+            className="!self-start"
           >
             กลับ
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">{playlist.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {playlist.name}
+            </h1>
             {playlist.description && (
-              <p className="mt-1 text-sm text-gray-600">{playlist.description}</p>
+              <p className="mt-1 text-sm text-gray-600">
+                {playlist.description}
+              </p>
             )}
             <p className="mt-1 text-xs text-gray-500">
               {filteredTracks.length} เพลง
@@ -526,25 +548,29 @@ export default function PlaylistDetailPage({
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <Button
-              type={showIgnored ? 'primary' : 'default'}
+              type={showIgnored ? "primary" : "default"}
               icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
               onClick={() => {
-                setShowIgnored(!showIgnored)
-                setCurrentPage(1)
+                setShowIgnored(!showIgnored);
+                setCurrentPage(1);
               }}
               size="small"
-              className="self-start"
+              className="!self-start"
             >
-              <span className="hidden sm:inline">{showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}</span>
-              <span className="inline sm:hidden">{showIgnored ? 'แสดง' : 'ซ่อน'}ไม่สนใจ</span>
+              <span className="hidden sm:inline">
+                {showIgnored ? "แสดงเพลงไม่สนใจ" : "ซ่อนเพลงไม่สนใจ"}
+              </span>
+              <span className="inline sm:hidden">
+                {showIgnored ? "แสดง" : "ซ่อน"}ไม่สนใจ
+              </span>
             </Button>
             <div className="overflow-x-auto">
               <Segmented
                 options={STATUS_FILTERS}
                 value={statusFilter}
                 onChange={(value) => {
-                  setStatusFilter(value as typeof statusFilter)
-                  setCurrentPage(1)
+                  setStatusFilter(value as typeof statusFilter);
+                  setCurrentPage(1);
                 }}
                 size="small"
               />
@@ -554,11 +580,11 @@ export default function PlaylistDetailPage({
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => {
-              fetchAvailableTracks()
-              setIsAddModalOpen(true)
+              fetchAvailableTracks();
+              setIsAddModalOpen(true);
             }}
             size="small"
-            className="self-start"
+            className="!self-start"
           >
             เพิ่มเพลง
           </Button>
@@ -572,8 +598,8 @@ export default function PlaylistDetailPage({
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => {
-                fetchAvailableTracks()
-                setIsAddModalOpen(true)
+                fetchAvailableTracks();
+                setIsAddModalOpen(true);
               }}
             >
               เพิ่มเพลง
@@ -588,7 +614,7 @@ export default function PlaylistDetailPage({
               columns={columns}
               rowKey="id"
               pagination={false}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: "max-content" }}
             />
           </div>
           {totalPages > 1 && (
@@ -613,9 +639,9 @@ export default function PlaylistDetailPage({
         open={isAddModalOpen}
         onOk={handleAddTrack}
         onCancel={() => {
-          setIsAddModalOpen(false)
-          setSelectedTrackId(null)
-          setSearchTerm('')
+          setIsAddModalOpen(false);
+          setSelectedTrackId(null);
+          setSearchTerm("");
         }}
         confirmLoading={adding}
         okText="เพิ่ม"
@@ -641,13 +667,11 @@ export default function PlaylistDetailPage({
               label: `${track.name} - ${track.artistName} (${track.albumName})`,
             }))}
             filterOption={(input, option) =>
-              (option?.label ?? '')
-                .toLowerCase()
-                .includes(input.toLowerCase())
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
             }
           />
         </div>
       </Modal>
     </div>
-  )
+  );
 }

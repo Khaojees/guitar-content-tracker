@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Button, Typography, Tag, Empty, Segmented, Select, Tooltip, App as AntApp } from "antd";
+import {
+  Card,
+  Button,
+  Typography,
+  Tag,
+  Empty,
+  Segmented,
+  Select,
+  Tooltip,
+  App as AntApp,
+} from "antd";
 import {
   ThunderboltOutlined,
   StarFilled,
@@ -14,7 +24,7 @@ import {
   EyeInvisibleOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
-import { buildGuessSongText } from '@/lib/guessSongText';
+import { buildGuessSongText } from "@/lib/guessSongText";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -49,17 +59,17 @@ const STATUS_CONFIG: Record<
   RandomTrack["status"],
   { label: string; color: string }
 > = {
-  idea: { label: 'ไอเดีย', color: 'default' },
-  ready: { label: 'พร้อมทำงาน', color: 'blue' },
-  recorded: { label: 'อัดแล้ว', color: 'orange' },
-  posted: { label: 'เผยแพร่แล้ว', color: 'green' },
-}
+  idea: { label: "ไอเดีย", color: "default" },
+  ready: { label: "พร้อมทำงาน", color: "blue" },
+  recorded: { label: "อัดแล้ว", color: "orange" },
+  posted: { label: "เผยแพร่แล้ว", color: "green" },
+};
 
 function RandomPageContent() {
   const { modal, message: antMessage } = AntApp.useApp();
   const [track, setTrack] = useState<RandomTrack | null>(null);
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<'starred' | 'all'>('starred');
+  const [mode, setMode] = useState<"starred" | "all">("starred");
 
   const getRandomTrack = async () => {
     setLoading(true);
@@ -84,20 +94,20 @@ function RandomPageContent() {
 
     try {
       const response = await fetch(`/api/track/${track.id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (response.ok) {
         setTrack({ ...track, status: newStatus });
-        antMessage.success('เปลี่ยนสถานะเรียบร้อย');
+        antMessage.success("เปลี่ยนสถานะเรียบร้อย");
       } else {
-        antMessage.error('ไม่สามารถเปลี่ยนสถานะได้');
+        antMessage.error("ไม่สามารถเปลี่ยนสถานะได้");
       }
     } catch (error) {
-      console.error('Update status error:', error);
-      antMessage.error('เกิดข้อผิดพลาด');
+      console.error("Update status error:", error);
+      antMessage.error("เกิดข้อผิดพลาด");
     }
   };
 
@@ -107,20 +117,26 @@ function RandomPageContent() {
     const newStarred = !track.starred;
     try {
       const response = await fetch(`/api/track/${track.id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ starred: newStarred }),
       });
 
       if (response.ok) {
-        setTrack({ ...track, starred: newStarred, ...(newStarred && { ignored: false }) });
-        antMessage.success(newStarred ? 'ติดดาวเพลงนี้แล้ว' : 'ถอดดาวเพลงนี้แล้ว');
+        setTrack({
+          ...track,
+          starred: newStarred,
+          ...(newStarred && { ignored: false }),
+        });
+        antMessage.success(
+          newStarred ? "ติดดาวเพลงนี้แล้ว" : "ถอดดาวเพลงนี้แล้ว"
+        );
       } else {
-        antMessage.error('ไม่สามารถติดดาวได้');
+        antMessage.error("ไม่สามารถติดดาวได้");
       }
     } catch (error) {
-      console.error('Toggle star error:', error);
-      antMessage.error('เกิดข้อผิดพลาดระหว่างติดดาว');
+      console.error("Toggle star error:", error);
+      antMessage.error("เกิดข้อผิดพลาดระหว่างติดดาว");
     }
   };
 
@@ -130,27 +146,31 @@ function RandomPageContent() {
     const newIgnored = !track.ignored;
     try {
       const response = await fetch(`/api/track/${track.id}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ignored: newIgnored,
-          ...(newIgnored && { starred: false })
+          ...(newIgnored && { starred: false }),
         }),
       });
 
       if (response.ok) {
-        setTrack({ ...track, ignored: newIgnored, ...(newIgnored && { starred: false }) });
+        setTrack({
+          ...track,
+          ignored: newIgnored,
+          ...(newIgnored && { starred: false }),
+        });
         antMessage.success(
           newIgnored
-            ? 'ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว'
-            : 'เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย'
+            ? "ทำเครื่องหมายเพลงนี้เป็นไม่สนใจแล้ว"
+            : "เอาเพลงนี้ออกจากไม่สนใจเรียบร้อย"
         );
       } else {
-        antMessage.error('ไม่สามารถเปลี่ยนสถานะไม่สนใจได้');
+        antMessage.error("ไม่สามารถเปลี่ยนสถานะไม่สนใจได้");
       }
     } catch (error) {
-      console.error('Toggle ignored error:', error);
-      antMessage.error('เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะไม่สนใจ');
+      console.error("Toggle ignored error:", error);
+      antMessage.error("เกิดข้อผิดพลาดระหว่างเปลี่ยนสถานะไม่สนใจ");
     }
   };
 
@@ -161,10 +181,10 @@ function RandomPageContent() {
       await navigator.clipboard.writeText(
         buildGuessSongText(track.name, track.artist.name)
       );
-      antMessage.success('Copied guess text to clipboard');
+      antMessage.success("Copied guess text to clipboard");
     } catch (error) {
-      console.error('Copy guess text error:', error);
-      antMessage.error('Unable to copy guess text');
+      console.error("Copy guess text error:", error);
+      antMessage.error("Unable to copy guess text");
     }
   };
 
@@ -172,26 +192,26 @@ function RandomPageContent() {
     if (!track) return;
 
     modal.confirm({
-      title: 'ยืนยันการลบ',
+      title: "ยืนยันการลบ",
       content: `ลบเพลง "${track.name}" ออกจากระบบ?`,
-      okText: 'ลบ',
+      okText: "ลบ",
       okButtonProps: { danger: true },
-      cancelText: 'ยกเลิก',
+      cancelText: "ยกเลิก",
       onOk: async () => {
         try {
           const response = await fetch(`/api/track/${track.id}`, {
-            method: 'DELETE',
+            method: "DELETE",
           });
 
           if (response.ok) {
-            antMessage.success('ลบเพลงเรียบร้อย');
+            antMessage.success("ลบเพลงเรียบร้อย");
             setTrack(null); // Clear the track after deletion
           } else {
-            antMessage.error('ไม่สามารถลบเพลงได้');
+            antMessage.error("ไม่สามารถลบเพลงได้");
           }
         } catch (error) {
-          console.error('Delete track error:', error);
-          antMessage.error('เกิดข้อผิดพลาดระหว่างลบเพลง');
+          console.error("Delete track error:", error);
+          antMessage.error("เกิดข้อผิดพลาดระหว่างลบเพลง");
         }
       },
     });
@@ -208,13 +228,14 @@ function RandomPageContent() {
     <div className="space-y-10">
       <section className="text-center space-y-3">
         <Title level={2} className="!mb-2 !text-slate-900">
-          {mode === 'starred' ? 'สุ่มแรงบันดาลใจจากเพลงที่คุณติดดาว' : 'สุ่มเพลงจากทุกเพลงในระบบ'}
+          {mode === "starred"
+            ? "สุ่มแรงบันดาลใจจากเพลงที่คุณติดดาว"
+            : "สุ่มเพลงจากทุกเพลงในระบบ"}
         </Title>
         <Paragraph className="!mb-0 text-slate-600">
-          {mode === 'starred'
-            ? 'กดสุ่มเพื่อเลือกเพลงที่อยากหยิบมาทำคอนเทนต์ในตอนนี้ทันที ระบบจะเลือกเฉพาะเพลงที่คุณปักดาวไว้แล้ว (สถานะ Idea และ Ready) เพื่อให้คุณโฟกัสกับคอนเทนต์ที่อยากผลักดันจริงๆ'
-            : 'สุ่มเพลงจากทุกเพลงที่มีในระบบ ไม่ว่าจะมีสถานะหรือติดดาวหรือไม่ก็ตาม'
-          }
+          {mode === "starred"
+            ? "กดสุ่มเพื่อเลือกเพลงที่อยากหยิบมาทำคอนเทนต์ในตอนนี้ทันที ระบบจะเลือกเฉพาะเพลงที่คุณปักดาวไว้แล้ว (สถานะ Idea และ Ready) เพื่อให้คุณโฟกัสกับคอนเทนต์ที่อยากผลักดันจริงๆ"
+            : "สุ่มเพลงจากทุกเพลงที่มีในระบบ ไม่ว่าจะมีสถานะหรือติดดาวหรือไม่ก็ตาม"}
         </Paragraph>
       </section>
 
@@ -224,12 +245,12 @@ function RandomPageContent() {
             <Segmented
               value={mode}
               onChange={(value) => {
-                setMode(value as 'starred' | 'all')
-                setTrack(null) // Clear current track when switching modes
+                setMode(value as "starred" | "all");
+                setTrack(null); // Clear current track when switching modes
               }}
               options={[
-                { label: 'เพลงติดดาว', value: 'starred' },
-                { label: 'ทุกเพลง', value: 'all' },
+                { label: "เพลงติดดาว", value: "starred" },
+                { label: "ทุกเพลง", value: "all" },
               ]}
               size="large"
             />
@@ -239,9 +260,13 @@ function RandomPageContent() {
               icon={<ThunderboltOutlined />}
               onClick={getRandomTrack}
               loading={loading}
-              className="flex items-center gap-2 rounded-full px-8 text-base shadow-lg shadow-indigo-500/25 hover:-translate-y-[1px]"
+              className="!flex !items-center !gap-2 !rounded-full !px-8 !text-base !shadow-lg !shadow-indigo-500/25 hover:!-translate-y-[1px]"
             >
-              {loading ? "กำลังสุ่มเพลง..." : mode === 'starred' ? "สุ่มเพลงจากลิสต์ที่ติดดาว" : "สุ่มเพลงจากทุกเพลง"}
+              {loading
+                ? "กำลังสุ่มเพลง..."
+                : mode === "starred"
+                ? "สุ่มเพลงจากลิสต์ที่ติดดาว"
+                : "สุ่มเพลงจากทุกเพลง"}
             </Button>
           </div>
 
@@ -274,10 +299,12 @@ function RandomPageContent() {
                     onChange={(value) => updateStatus(value)}
                     size="middle"
                     style={{ width: 150 }}
-                    options={Object.entries(STATUS_CONFIG).map(([key, config]) => ({
-                      value: key,
-                      label: config.label,
-                    }))}
+                    options={Object.entries(STATUS_CONFIG).map(
+                      ([key, config]) => ({
+                        value: key,
+                        label: config.label,
+                      })
+                    )}
                   />
                   <Tag
                     icon={<ClockCircleOutlined />}
@@ -294,23 +321,29 @@ function RandomPageContent() {
                       onClick={toggleStar}
                       icon={
                         track.starred ? (
-                          <StarFilled className="text-lg text-yellow-500" />
+                          <StarFilled className="!text-lg !text-yellow-500" />
                         ) : (
-                          <StarOutlined className="text-lg text-gray-300" />
+                          <StarOutlined className="!text-lg !text-gray-300" />
                         )
                       }
                     />
                   </Tooltip>
 
-                  <Tooltip title={track.ignored ? "เอาออกจากไม่สนใจ" : "ทำเครื่องหมายไม่สนใจ"}>
+                  <Tooltip
+                    title={
+                      track.ignored
+                        ? "เอาออกจากไม่สนใจ"
+                        : "ทำเครื่องหมายไม่สนใจ"
+                    }
+                  >
                     <Button
                       type="text"
                       onClick={toggleIgnored}
                       icon={
                         track.ignored ? (
-                          <EyeInvisibleOutlined className="text-lg text-gray-500" />
+                          <EyeInvisibleOutlined className="!text-lg !text-gray-500" />
                         ) : (
-                          <EyeOutlined className="text-lg text-gray-300" />
+                          <EyeOutlined className="!text-lg !text-gray-300" />
                         )
                       }
                     />
@@ -320,13 +353,17 @@ function RandomPageContent() {
                     <Button
                       type="text"
                       onClick={() => {
-                        const searchQuery = `${track.name} ${track.artist.name}`
+                        const searchQuery = `${track.name} ${track.artist.name}`;
                         window.open(
-                          `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`,
-                          '_blank'
-                        )
+                          `https://www.youtube.com/results?search_query=${encodeURIComponent(
+                            searchQuery
+                          )}`,
+                          "_blank"
+                        );
                       }}
-                      icon={<YoutubeOutlined className="text-lg text-red-500" />}
+                      icon={
+                        <YoutubeOutlined className="!text-lg !text-red-500" />
+                      }
                     />
                   </Tooltip>
 
@@ -353,7 +390,7 @@ function RandomPageContent() {
                     type="default"
                     size="large"
                     icon={<EyeOutlined />}
-                    className="rounded-full border-indigo-200 px-6 text-indigo-600 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+                    className="!rounded-full !border-indigo-200 !px-6 !text-indigo-600 !shadow-sm !transition-colors hover:!border-indigo-300 hover:!text-indigo-700"
                   >
                     เปิดหน้าโปรไฟล์ศิลปิน
                   </Button>
@@ -364,7 +401,7 @@ function RandomPageContent() {
             !loading && (
               <Empty
                 description={
-                  mode === 'starred'
+                  mode === "starred"
                     ? "ยังไม่มีเพลงที่สุ่มได้ ลองปักดาวเพลงที่อยากทำก่อนนะ"
                     : "ยังไม่มีเพลงในระบบ"
                 }

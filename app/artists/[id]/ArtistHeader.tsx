@@ -108,7 +108,7 @@ export default function ArtistHeader({
             <Button
               icon={<ArrowLeftOutlined />}
               onClick={() => router.push("/artists")}
-              className="rounded-full border-slate-200 px-3 sm:px-4"
+              className="!rounded-full !border-slate-200 !px-3 sm:!px-4"
               size="small"
             >
               <span className="hidden sm:inline">กลับไปรายชื่อศิลปิน</span>
@@ -119,7 +119,7 @@ export default function ArtistHeader({
               icon={<DeleteOutlined />}
               loading={deleting}
               onClick={confirmDelete}
-              className="rounded-full px-3 sm:px-4"
+              className="!rounded-full !px-3 sm:!px-4"
               size="small"
             >
               ลบศิลปิน

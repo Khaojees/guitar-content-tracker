@@ -1,33 +1,33 @@
-import { prisma } from '@/lib/prisma'
-import ArtistsList from './ArtistsList'
-import Link from 'next/link'
-import { Empty, Button } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { prisma } from "@/lib/prisma";
+import ArtistsList from "./ArtistsList";
+import Link from "next/link";
+import { Empty, Button } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
-const ITEMS_PER_PAGE = 24
+const ITEMS_PER_PAGE = 24;
 
 export default async function ArtistsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; filter?: string }>
+  searchParams: Promise<{ page?: string; search?: string; filter?: string }>;
 }) {
-  const params = await searchParams
-  const page = parseInt(params.page || '1', 10)
-  const searchTerm = params.search || ''
-  const filter = params.filter || 'all'
-  const skip = (page - 1) * ITEMS_PER_PAGE
+  const params = await searchParams;
+  const page = parseInt(params.page || "1", 10);
+  const searchTerm = params.search || "";
+  const filter = params.filter || "all";
+  const skip = (page - 1) * ITEMS_PER_PAGE;
 
   // Build where clause
-  const whereClause: any = {}
+  const whereClause: any = {};
 
   // Search by name
   if (searchTerm) {
     whereClause.name = {
       contains: searchTerm,
-      mode: 'insensitive',
-    }
+      mode: "insensitive",
+    };
   }
 
   const [artists, totalCount] = await Promise.all([
@@ -41,7 +41,7 @@ export default async function ArtistsPage({
         },
       },
       orderBy: {
-        name: 'asc',
+        name: "asc",
       },
       take: ITEMS_PER_PAGE,
       skip,
@@ -49,9 +49,9 @@ export default async function ArtistsPage({
     prisma.artist.count({
       where: whereClause,
     }),
-  ])
+  ]);
 
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6">
@@ -74,7 +74,7 @@ export default async function ArtistsPage({
           <div className="text-center">
             <Empty description="ยังไม่มีศิลปิน" />
             <Link href="/search">
-              <Button type="primary" className="mt-4">
+              <Button type="primary" className="!mt-4">
                 เริ่มค้นหาศิลปิน
               </Button>
             </Link>
@@ -91,5 +91,5 @@ export default async function ArtistsPage({
         />
       )}
     </div>
-  )
+  );
 }
