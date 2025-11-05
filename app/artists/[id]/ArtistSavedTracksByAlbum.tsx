@@ -303,16 +303,11 @@ export default function ArtistSavedTracksByAlbum({
 
   const columns: ColumnsType<SavedTrack> = [
     {
-      title: 'ลำดับ',
-      dataIndex: 'trackNumber',
-      key: 'trackNumber',
-      width: 90,
-      render: (value: number | null) => value ?? '-',
-    },
-    {
       title: 'เพลง',
       dataIndex: 'name',
       key: 'name',
+      fixed: 'left',
+      width: 200,
       render: (name: string) => <span className="font-medium text-gray-900">{name}</span>,
     },
     {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { App, Button, Input, Modal, Select, Spin, Table, Tag, Empty, Tooltip } from 'antd'
+import { App, Button, Input, Modal, Select, Spin, Table, Tag, Empty, Tooltip, Segmented, Pagination } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   ArrowLeftOutlined,
@@ -26,12 +26,12 @@ type PlaylistTrack = {
     id: number
     name: string
     duration: number | null
-    album: {
+    albumName: string | null
+    albumImage: string | null
+    note: string | null
+    artist: {
+      id: number
       name: string
-      artist: {
-        id: number
-        name: string
-      }
     }
     trackStatus: {
       status: string
@@ -65,6 +65,15 @@ const STATUS_CONFIG: Record<
   posted: { label: 'เผยแพร่แล้ว', color: 'green' },
 }
 
+const STATUS_FILTERS = [
+  { label: 'ทั้งหมด', value: 'all' },
+  { label: STATUS_CONFIG.idea.label, value: 'idea' },
+  { label: STATUS_CONFIG.ready.label, value: 'ready' },
+  { label: STATUS_CONFIG.recorded.label, value: 'recorded' },
+  { label: STATUS_CONFIG.posted.label, value: 'posted' },
+  { label: 'ติดดาว', value: 'starred' },
+]
+
 const formatDuration = (ms: number | null) => {
   if (!ms) return '-'
   const minutes = Math.floor(ms / 60000)
@@ -88,6 +97,9 @@ export default function PlaylistDetailPage({
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const [showIgnored, setShowIgnored] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'all' | TrackStatusKey | 'starred'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 50
 
   useEffect(() => {
     params.then(setResolvedParams)
@@ -240,7 +252,7 @@ export default function PlaylistDetailPage({
       await navigator.clipboard.writeText(
         buildGuessSongText(
           playlistTrack.track.name,
-          playlistTrack.track.album.artist.name
+          playlistTrack.track.artist.name
         )
       )
       message.success('Copied guess text to clipboard')
@@ -249,14 +261,6 @@ export default function PlaylistDetailPage({
       message.error('Unable to copy guess text')
     }
   }
-
-  const filteredTracks = useMemo(() => {
-    if (!playlist) return []
-    return playlist.playlistTracks.filter((pt) => {
-      const ignored = pt.track.trackStatus?.ignored ?? false
-      return showIgnored ? true : !ignored
-    })
-  }, [playlist, showIgnored])
 
   const updateStatus = async (trackId: number, newStatus: TrackStatusKey) => {
     try {
@@ -278,14 +282,50 @@ export default function PlaylistDetailPage({
     }
   }
 
+  // Filter and paginate tracks
+  const filteredTracks = useMemo(() => {
+    if (!playlist) return []
+
+    let tracks = playlist.playlistTracks
+
+    // Filter by ignored status
+    if (!showIgnored) {
+      tracks = tracks.filter(
+        (pt) => !pt.track.trackStatus?.ignored
+      )
+    }
+
+    // Filter by status
+    if (statusFilter === 'starred') {
+      tracks = tracks.filter((pt) => pt.track.trackStatus?.starred)
+    } else if (statusFilter !== 'all') {
+      tracks = tracks.filter(
+        (pt) => pt.track.trackStatus?.status === statusFilter
+      )
+    }
+
+    return tracks
+  }, [playlist, showIgnored, statusFilter])
+
+  // Paginated tracks
+  const paginatedTracks = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    return filteredTracks.slice(startIndex, endIndex)
+  }, [filteredTracks, currentPage, ITEMS_PER_PAGE])
+
+  const totalPages = Math.ceil(filteredTracks.length / ITEMS_PER_PAGE)
+
   const columns: ColumnsType<PlaylistTrack> = [
     {
       title: 'เพลง',
       dataIndex: ['track', 'name'],
       key: 'name',
+      fixed: 'left',
+      width: 200,
       render: (name, record) => (
         <Link
-          href={`/artists/${record.track.album.artist.id}`}
+          href={`/artists/${record.track.artist.id}`}
           className="font-medium text-gray-900 hover:text-indigo-600"
         >
           {name}
@@ -294,13 +334,13 @@ export default function PlaylistDetailPage({
     },
     {
       title: 'ศิลปิน',
-      dataIndex: ['track', 'album', 'artist', 'name'],
+      dataIndex: ['track', 'artist', 'name'],
       key: 'artist',
       render: (text) => <span className="text-gray-600">{text}</span>,
     },
     {
       title: 'อัลบัม',
-      dataIndex: ['track', 'album', 'name'],
+      dataIndex: ['track', 'albumName'],
       key: 'album',
       render: (text) => <span className="text-gray-600">{text}</span>,
     },
@@ -335,18 +375,11 @@ export default function PlaylistDetailPage({
       },
     },
     {
-      title: '',
-      key: 'copyGuessText',
-      align: 'center',
-      render: (_, record) => (
-        <Tooltip title="Copy guess text template">
-          <Button
-            type="text"
-            icon={<CopyOutlined />}
-            onClick={() => handleCopyGuessText(record)}
-          />
-        </Tooltip>
-      ),
+      title: 'หมายเหตุ',
+      dataIndex: ['track', 'note'],
+      key: 'note',
+      width: 250,
+      render: (text) => <span className="text-gray-600 text-sm">{text || '-'}</span>,
     },
     {
       title: 'YouTube',
@@ -356,7 +389,7 @@ export default function PlaylistDetailPage({
         <Button
           type="text"
           onClick={() => {
-            const searchQuery = `${record.track.name} ${record.track.album.artist.name}`
+            const searchQuery = `${record.track.name} ${record.track.artist.name}`
             window.open(
               `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`,
               '_blank'
@@ -367,7 +400,7 @@ export default function PlaylistDetailPage({
       ),
     },
     {
-      title: 'สำคัญ',
+      title: 'ติดดาว',
       key: 'starred',
       align: 'center',
       render: (_, record) => (
@@ -434,6 +467,20 @@ export default function PlaylistDetailPage({
         />
       ),
     },
+    {
+      title: '',
+      key: 'copyGuessText',
+      align: 'center',
+      render: (_, record) => (
+        <Tooltip title="คัดลอกข้อความทายเพลง">
+          <Button
+            type="text"
+            icon={<CopyOutlined />}
+            onClick={() => handleCopyGuessText(record)}
+          />
+        </Tooltip>
+      ),
+    },
   ]
 
   if (loading || !playlist) {
@@ -476,16 +523,33 @@ export default function PlaylistDetailPage({
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type={showIgnored ? 'primary' : 'default'}
-            icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-            onClick={() => setShowIgnored(!showIgnored)}
-            size="small"
-          >
-            <span className="hidden sm:inline">{showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}</span>
-            <span className="inline sm:hidden">{showIgnored ? 'แสดง' : 'ซ่อน'}ไม่สนใจ</span>
-          </Button>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              type={showIgnored ? 'primary' : 'default'}
+              icon={showIgnored ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+              onClick={() => {
+                setShowIgnored(!showIgnored)
+                setCurrentPage(1)
+              }}
+              size="small"
+              className="self-start"
+            >
+              <span className="hidden sm:inline">{showIgnored ? 'แสดงเพลงไม่สนใจ' : 'ซ่อนเพลงไม่สนใจ'}</span>
+              <span className="inline sm:hidden">{showIgnored ? 'แสดง' : 'ซ่อน'}ไม่สนใจ</span>
+            </Button>
+            <div className="overflow-x-auto">
+              <Segmented
+                options={STATUS_FILTERS}
+                value={statusFilter}
+                onChange={(value) => {
+                  setStatusFilter(value as typeof statusFilter)
+                  setCurrentPage(1)
+                }}
+                size="small"
+              />
+            </div>
+          </div>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -494,6 +558,7 @@ export default function PlaylistDetailPage({
               setIsAddModalOpen(true)
             }}
             size="small"
+            className="self-start"
           >
             เพิ่มเพลง
           </Button>
@@ -516,18 +581,31 @@ export default function PlaylistDetailPage({
           </Empty>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg bg-white shadow">
-          <Table
-            dataSource={filteredTracks}
-            columns={columns}
-            rowKey="id"
-            pagination={{
-              pageSize: 20,
-              showSizeChanger: false,
-            }}
-            scroll={{ x: 'max-content' }}
-          />
-        </div>
+        <>
+          <div className="overflow-x-auto rounded-lg bg-white shadow">
+            <Table
+              dataSource={paginatedTracks}
+              columns={columns}
+              rowKey="id"
+              pagination={false}
+              scroll={{ x: 'max-content' }}
+            />
+          </div>
+          {totalPages > 1 && (
+            <div className="flex justify-center">
+              <Pagination
+                current={currentPage}
+                total={filteredTracks.length}
+                pageSize={ITEMS_PER_PAGE}
+                onChange={(page) => setCurrentPage(page)}
+                showSizeChanger={false}
+                showTotal={(total, range) =>
+                  `แสดง ${range[0]}-${range[1]} จากทั้งหมด ${total} เพลง`
+                }
+              />
+            </div>
+          )}
+        </>
       )}
 
       <Modal
