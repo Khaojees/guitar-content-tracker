@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Card, Button, Typography, Slider, InputNumber } from "antd";
+import { Card, Button, Typography, Slider, Switch, InputNumber } from "antd";
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -10,13 +10,34 @@ import {
 
 const { Title, Text } = Typography;
 
+const CLICK_SOUND_PATHS = {
+  accent: "/click-sound/click1.mp3",
+  regular: "/click-sound/click2.mp3",
+} as const;
+
+async function loadAudioBuffer(ctx: AudioContext, url: string) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch click sound: ${url}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return await ctx.decodeAudioData(arrayBuffer);
+}
+
 export default function MetronomePage() {
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [beat, setBeat] = useState(0);
+  const [beatsPerMeasure, setBeatsPerMeasure] = useState(4);
+  const [clickMode, setClickMode] = useState<"accented" | "even">("accented");
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const clickBuffersRef = useRef<{
+    accent: AudioBuffer | null;
+    regular: AudioBuffer | null;
+  }>({ accent: null, regular: null });
+  const clickLoadingRef = useRef(false);
   const tapStateRef = useRef<{
     lastTapTime: number;
     averageInterval: number;
@@ -40,18 +61,58 @@ export default function MetronomePage() {
     bpm: null,
   });
 
+  const loadClickBuffers = useCallback(
+    async (ctx: AudioContext | null) => {
+      if (!ctx || clickLoadingRef.current) {
+        return;
+      }
+
+      const buffers = clickBuffersRef.current;
+      if (buffers.accent && buffers.regular) {
+        return;
+      }
+
+      clickLoadingRef.current = true;
+      try {
+        const [accentBuffer, regularBuffer] = await Promise.all([
+          loadAudioBuffer(ctx, CLICK_SOUND_PATHS.accent),
+          loadAudioBuffer(ctx, CLICK_SOUND_PATHS.regular),
+        ]);
+
+        if (audioContextRef.current !== ctx) {
+          return;
+        }
+
+        clickBuffersRef.current = {
+          accent: accentBuffer,
+          regular: regularBuffer,
+        };
+      } catch (error) {
+        console.warn("Failed to load click samples", error);
+      } finally {
+        clickLoadingRef.current = false;
+      }
+    },
+    [],
+  );
+
   // Initialize AudioContext
   useEffect(() => {
     if (typeof window !== "undefined") {
-      audioContextRef.current = new (window.AudioContext ||
+      const ctx = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
+      audioContextRef.current = ctx;
+      loadClickBuffers(ctx);
     }
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
+        audioContextRef.current = null;
       }
+      clickBuffersRef.current = { accent: null, regular: null };
+      clickLoadingRef.current = false;
     };
-  }, []);
+  }, [loadClickBuffers]);
 
   useEffect(() => {
     return () => {
@@ -64,32 +125,58 @@ export default function MetronomePage() {
   }, []);
 
   // Play click sound
-  const playClick = useCallback((isAccent = false) => {
-    if (!audioContextRef.current) return;
+  const playClick = useCallback(
+    (isAccent = false) => {
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
 
-    const ctx = audioContextRef.current;
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
+      const buffers = clickBuffersRef.current;
+      if (!buffers.accent || !buffers.regular) {
+        loadClickBuffers(ctx);
+      }
 
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
+      const buffer =
+        (isAccent ? buffers.accent : buffers.regular) ||
+        buffers.regular ||
+        buffers.accent;
 
-    // Use moderate frequency for natural "tick" sound
-    oscillator.frequency.value = isAccent ? 1200 : 800;
-    oscillator.type = "sine";
+      if (!buffer) {
+        // Fallback simple oscillator tick while assets load
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
 
-    // Create sharp attack and quick decay envelope for "tick" sound
-    const now = ctx.currentTime;
-    const attackTime = 0.001; // Very fast attack (1ms)
-    const decayTime = 0.02; // Quick decay (20ms)
+        oscillator.type = "square";
+        oscillator.frequency.value = isAccent ? 1850 : 1400;
 
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(isAccent ? 0.5 : 0.3, now + attackTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + attackTime + decayTime);
+        const now = ctx.currentTime;
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.exponentialRampToValueAtTime(
+          isAccent ? 0.8 : 0.6,
+          now + 0.001,
+        );
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
 
-    oscillator.start(now);
-    oscillator.stop(now + attackTime + decayTime);
-  }, []);
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.06);
+        return;
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+
+      const gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(isAccent ? 1 : 0.85, ctx.currentTime);
+
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      source.start();
+    },
+    [loadClickBuffers],
+  );
 
   // Start/Stop metronome
   useEffect(() => {
@@ -104,7 +191,11 @@ export default function MetronomePage() {
           audioContextRef.current = ctx;
         }
 
-        if (ctx && ctx.state === "suspended") {
+        if (!ctx) {
+          return;
+        }
+
+        if (ctx.state === "suspended") {
           try {
             await ctx.resume();
           } catch (error) {
@@ -112,20 +203,26 @@ export default function MetronomePage() {
           }
         }
 
+        await loadClickBuffers(ctx);
+
         if (isCancelled) {
           return;
         }
 
-        playClick(true);
+        const beatsInMeasure = Math.max(1, beatsPerMeasure);
+        const initialAccent = clickMode === "accented";
+
+        playClick(initialAccent);
         setBeat(0);
 
         const interval = 60000 / bpm; // Convert BPM to milliseconds
-        let currentBeat = 1;
+        let currentBeat = beatsInMeasure > 1 ? 1 : 0;
 
         intervalRef.current = setInterval(() => {
-          playClick(currentBeat === 0);
+          const shouldAccent = clickMode === "accented" && currentBeat === 0;
+          playClick(shouldAccent);
           setBeat(currentBeat);
-          currentBeat = (currentBeat + 1) % 4;
+          currentBeat = (currentBeat + 1) % beatsInMeasure;
         }, interval);
       };
 
@@ -145,7 +242,7 @@ export default function MetronomePage() {
         intervalRef.current = null;
       }
     };
-  }, [isPlaying, bpm, playClick]);
+  }, [isPlaying, bpm, beatsPerMeasure, clickMode, loadClickBuffers, playClick]);
 
   const handleBpmChange = (value: number | null) => {
     if (value && value >= 30 && value <= 300) {
@@ -163,6 +260,18 @@ export default function MetronomePage() {
 
   const togglePlayPause = () => {
     setIsPlaying((prev) => !prev);
+  };
+
+  const incrementBeatsPerMeasure = () => {
+    setBeatsPerMeasure((prev) => Math.min(16, prev + 1));
+  };
+
+  const decrementBeatsPerMeasure = () => {
+    setBeatsPerMeasure((prev) => Math.max(1, prev - 1));
+  };
+
+  const handleModeToggle = (checked: boolean) => {
+    setClickMode(checked ? "accented" : "even");
   };
 
   const handleTapTempo = () => {
@@ -265,6 +374,8 @@ export default function MetronomePage() {
 
   const stepButtonClass =
     "!flex !h-16 !w-16 !items-center !justify-center !rounded-full !border-2 !border-slate-200 !bg-slate-50 !p-0 !text-3xl !font-bold !text-slate-600 !transition-all hover:!border-indigo-300 hover:!bg-indigo-100 hover:!text-indigo-600 disabled:!cursor-not-allowed disabled:!border-slate-200 disabled:!bg-slate-100 disabled:!text-slate-300";
+  const measureButtonClass =
+    "!flex !h-10 !w-10 !items-center !justify-center !rounded-full !border !border-slate-200 !bg-white !p-0 !text-xl !font-semibold !text-slate-500 !shadow-sm hover:!border-indigo-300 hover:!text-indigo-600 disabled:!cursor-not-allowed disabled:!border-slate-200 disabled:!text-slate-300";
 
   return (
     <div className="flex min-h-[calc(100vh-200px)] items-center justify-center">
@@ -282,7 +393,10 @@ export default function MetronomePage() {
 
           {/* Visual Beat Indicator */}
           <div className="flex gap-4">
-            {[0, 1, 2, 3].map((i) => (
+            {Array.from(
+              { length: Math.max(1, beatsPerMeasure) },
+              (_, i) => i,
+            ).map((i) => (
               <div
                 key={i}
                 className={`h-4 w-4 rounded-full transition-all duration-100 ${
@@ -411,6 +525,57 @@ export default function MetronomePage() {
                 : "Tap session reset"}
             </Text>
           </div>
+
+          <div className="w-full rounded-3xl border border-slate-100 bg-slate-50/70 p-4 shadow-inner">
+            <div className="flex flex-col items-center gap-4 md:flex-row md:justify-between">
+              <div className="flex flex-col items-center gap-2">
+                <Text className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Beats per measure
+                </Text>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="text"
+                    size="small"
+                    onClick={decrementBeatsPerMeasure}
+                    className={measureButtonClass}
+                    disabled={beatsPerMeasure <= 1}
+                    aria-label="Decrease beats per measure"
+                  >
+                    -
+                  </Button>
+                  <div className="min-w-[44px] text-center">
+                    <Text className="text-2xl font-bold text-slate-700">
+                      {beatsPerMeasure}
+                    </Text>
+                  </div>
+                  <Button
+                    type="text"
+                    size="small"
+                    onClick={incrementBeatsPerMeasure}
+                    className={measureButtonClass}
+                    disabled={beatsPerMeasure >= 16}
+                    aria-label="Increase beats per measure"
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Text className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Mode
+                </Text>
+                <Switch
+                  checked={clickMode === "accented"}
+                  onChange={handleModeToggle}
+                  className="mode-switch"
+                />
+                <Text className="text-sm font-semibold text-slate-600">
+                  {clickMode === "accented" ? "Measure" : "Beat"}
+                </Text>
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -456,6 +621,53 @@ export default function MetronomePage() {
         .bpm-slider .ant-slider-handle:focus {
           border-color: #4f46e5;
           box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .mode-switch.ant-switch {
+          width: 56px;
+          height: 28px;
+          padding: 2px;
+          background: #e2e8f0;
+          border-radius: 9999px;
+          overflow: hidden;
+        }
+
+        .mode-switch.ant-switch::before {
+          display: none;
+        }
+
+        .mode-switch.ant-switch .ant-switch-handle {
+          width: 24px;
+          height: 24px;
+          top: 2px;
+          left: 2px;
+          transform: translateX(0);
+          transition: transform 0.2s ease;
+          border-radius: 50%;
+          box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+        }
+
+        .mode-switch.ant-switch .ant-switch-handle::before {
+          background-color: #ffffff;
+          border-radius: 50%;
+          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
+        }
+
+        .mode-switch.ant-switch-checked .ant-switch-handle {
+          transform: translateX(28px);
+        }
+
+        .mode-switch.ant-switch .ant-switch-inner {
+          display: none;
+        }
+
+        .mode-switch.ant-switch-checked {
+          background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        }
+
+        .mode-switch.ant-switch:focus-visible {
+          outline: 2px solid rgba(99, 102, 241, 0.5);
+          outline-offset: 2px;
         }
       `}</style>
     </div>
