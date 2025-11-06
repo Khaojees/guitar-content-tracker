@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // สำหรับ API routes: ใช้ API key แทน Basic Auth
+  // สำหรับ API routes: ตรวจสอบ API key หรือ cookie session
   if (pathname.startsWith('/api/')) {
     const apiKey = process.env.API_KEY
 
@@ -14,15 +14,32 @@ export function middleware(request: NextRequest) {
     }
 
     const requestApiKey = request.headers.get('x-api-key')
+    const authHeader = request.headers.get('authorization')
 
-    if (requestApiKey !== apiKey) {
-      return NextResponse.json(
-        { error: 'Invalid or missing API key' },
-        { status: 401 }
-      )
+    // ถ้ามี API key หรือ Basic Auth ที่ถูกต้อง ก็ให้ผ่าน
+    if (requestApiKey === apiKey) {
+      return NextResponse.next()
     }
 
-    return NextResponse.next()
+    // ตรวจสอบ Basic Auth (สำหรับเว็บที่เรียก API เดียวกัน)
+    if (authHeader) {
+      const authPassword = process.env.AUTH_PASSWORD
+      if (authPassword) {
+        const base64Credentials = authHeader.split(' ')[1]
+        const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8')
+        const [, password] = credentials.split(':')
+
+        if (password === authPassword) {
+          return NextResponse.next()
+        }
+      }
+    }
+
+    // ถ้าไม่มีทั้ง API key และ Basic Auth ที่ถูกต้อง
+    return NextResponse.json(
+      { error: 'Invalid or missing API key' },
+      { status: 401 }
+    )
   }
 
   // สำหรับเว็บ UI: ใช้ Basic Auth
