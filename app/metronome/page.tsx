@@ -14,10 +14,31 @@ export default function MetronomePage() {
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [beat, setBeat] = useState(0);
-  const [tapTimes, setTapTimes] = useState<number[]>([]);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const tapStateRef = useRef<{
+    lastTapTime: number;
+    averageInterval: number;
+    intervalCount: number;
+    totalTapCount: number;
+    timeoutId: ReturnType<typeof setTimeout> | null;
+  }>({
+    lastTapTime: 0,
+    averageInterval: 0,
+    intervalCount: 0,
+    totalTapCount: 0,
+    timeoutId: null,
+  });
+  const [tapStatus, setTapStatus] = useState<{
+    isActive: boolean;
+    taps: number;
+    bpm: number | null;
+  }>({
+    isActive: false,
+    taps: 0,
+    bpm: null,
+  });
 
   // Initialize AudioContext
   useEffect(() => {
@@ -28,6 +49,16 @@ export default function MetronomePage() {
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      const tapState = tapStateRef.current;
+      if (tapState.timeoutId) {
+        clearTimeout(tapState.timeoutId);
+        tapState.timeoutId = null;
       }
     };
   }, []);
@@ -62,15 +93,43 @@ export default function MetronomePage() {
 
   // Start/Stop metronome
   useEffect(() => {
-    if (isPlaying) {
-      const interval = 60000 / bpm; // Convert BPM to milliseconds
-      let currentBeat = 0;
+    let isCancelled = false;
 
-      intervalRef.current = setInterval(() => {
-        playClick(currentBeat === 0);
-        setBeat(currentBeat);
-        currentBeat = (currentBeat + 1) % 4;
-      }, interval);
+    if (isPlaying) {
+      const startMetronome = async () => {
+        let ctx = audioContextRef.current;
+
+        if (!ctx && typeof window !== "undefined") {
+          ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          audioContextRef.current = ctx;
+        }
+
+        if (ctx && ctx.state === "suspended") {
+          try {
+            await ctx.resume();
+          } catch (error) {
+            console.warn("Failed to resume AudioContext", error);
+          }
+        }
+
+        if (isCancelled) {
+          return;
+        }
+
+        playClick(true);
+        setBeat(0);
+
+        const interval = 60000 / bpm; // Convert BPM to milliseconds
+        let currentBeat = 1;
+
+        intervalRef.current = setInterval(() => {
+          playClick(currentBeat === 0);
+          setBeat(currentBeat);
+          currentBeat = (currentBeat + 1) % 4;
+        }, interval);
+      };
+
+      startMetronome();
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -80,8 +139,10 @@ export default function MetronomePage() {
     }
 
     return () => {
+      isCancelled = true;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [isPlaying, bpm, playClick]);
@@ -105,29 +166,101 @@ export default function MetronomePage() {
   };
 
   const handleTapTempo = () => {
-    const now = Date.now();
-    const newTapTimes = [...tapTimes, now].slice(-4); // Keep last 4 taps
-    setTapTimes(newTapTimes);
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    const tapState = tapStateRef.current;
 
-    if (newTapTimes.length >= 2) {
-      // Calculate average interval between taps
-      const intervals: number[] = [];
-      for (let i = 1; i < newTapTimes.length; i++) {
-        intervals.push(newTapTimes[i] - newTapTimes[i - 1]);
-      }
-      const avgInterval =
-        intervals.reduce((a, b) => a + b, 0) / intervals.length;
-      const calculatedBpm = Math.round(60000 / avgInterval);
-
-      if (calculatedBpm >= 30 && calculatedBpm <= 300) {
-        setBpm(calculatedBpm);
-      }
+    if (tapState.timeoutId) {
+      clearTimeout(tapState.timeoutId);
+      tapState.timeoutId = null;
     }
 
-    // Reset tap times after 2 seconds of inactivity
-    setTimeout(() => {
-      setTapTimes((prev) => prev.filter((time) => now - time < 2000));
-    }, 2000);
+    const MIN_RESET_WINDOW = 400;
+    const MAX_RESET_WINDOW = 4000;
+
+    const dynamicResetWindow = (
+      baseInterval: number | null,
+      { useMaxFallback = false }: { useMaxFallback?: boolean } = {},
+    ) => {
+      if (useMaxFallback) {
+        return MAX_RESET_WINDOW;
+      }
+
+      const fallbackInterval =
+        baseInterval ??
+        (tapState.averageInterval || 60000 / Math.max(bpm, 30));
+      return Math.min(
+        Math.max(fallbackInterval * 1.75, MIN_RESET_WINDOW),
+        MAX_RESET_WINDOW,
+      );
+    };
+
+    const scheduleReset = (windowMs: number) => {
+      tapState.timeoutId = setTimeout(() => {
+        const state = tapStateRef.current;
+        state.lastTapTime = 0;
+        state.averageInterval = 0;
+        state.intervalCount = 0;
+        state.totalTapCount = 0;
+        state.timeoutId = null;
+        setTapStatus({ isActive: false, taps: 0, bpm: null });
+      }, windowMs);
+    };
+
+    const lastTapTime = tapState.lastTapTime;
+    const interval = lastTapTime ? now - lastTapTime : null;
+
+    if (!interval) {
+      tapState.lastTapTime = now;
+      tapState.averageInterval = 0;
+      tapState.intervalCount = 0;
+      tapState.totalTapCount = 1;
+      setTapStatus({ isActive: true, taps: 1, bpm: null });
+      scheduleReset(dynamicResetWindow(null, { useMaxFallback: true }));
+      return;
+    }
+
+    const hasAverage = tapState.intervalCount > 0;
+    const currentAverage = tapState.averageInterval || interval;
+    const resetWindow = dynamicResetWindow(
+      hasAverage ? currentAverage : interval,
+    );
+    const exceededResetWindow = interval > resetWindow;
+    const intervalTolerance = hasAverage ? currentAverage * 0.45 : Infinity;
+    const isOutOfTolerance =
+      hasAverage &&
+      Math.abs(interval - tapState.averageInterval) > intervalTolerance;
+
+    if (!hasAverage || exceededResetWindow || isOutOfTolerance) {
+      tapState.averageInterval = interval;
+      tapState.intervalCount = 1;
+      tapState.totalTapCount = 2;
+    } else {
+      tapState.intervalCount += 1;
+      tapState.totalTapCount += 1;
+      tapState.averageInterval +=
+        (interval - tapState.averageInterval) / tapState.intervalCount;
+    }
+
+    tapState.lastTapTime = now;
+
+    const calculatedBpm = Math.round(60000 / tapState.averageInterval);
+    const isBpmValid =
+      tapState.intervalCount >= 1 &&
+      calculatedBpm >= 30 &&
+      calculatedBpm <= 300;
+
+    setTapStatus({
+      isActive: true,
+      taps: Math.max(tapState.totalTapCount, tapState.intervalCount + 1),
+      bpm: isBpmValid ? calculatedBpm : null,
+    });
+
+    if (isBpmValid) {
+      setBpm(calculatedBpm);
+    }
+
+    scheduleReset(dynamicResetWindow(tapState.averageInterval));
   };
 
   const stepButtonClass =
@@ -258,9 +391,24 @@ export default function MetronomePage() {
           </div>
 
           {/* Info */}
-          <div className="text-center">
+          <div className="text-center space-y-1">
             <Text className="text-sm text-slate-400">
               Tap the tempo button multiple times to set BPM by rhythm
+            </Text>
+            <Text
+              className={`text-xs ${
+                tapStatus.isActive ? "text-indigo-500" : "text-slate-300"
+              }`}
+            >
+              {tapStatus.isActive
+                ? tapStatus.bpm
+                  ? `Tap session active · ≈${tapStatus.bpm} BPM (${tapStatus.taps} tap${
+                      tapStatus.taps === 1 ? "" : "s"
+                    })`
+                  : `Tap session active · waiting for next tap (${tapStatus.taps} tap${
+                      tapStatus.taps === 1 ? "" : "s"
+                    })`
+                : "Tap session reset"}
             </Text>
           </div>
         </div>
