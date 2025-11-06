@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { fetchTrackFromItunes, normalizeArtwork } from '@/lib/itunes'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 export async function POST(request: NextRequest) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const body = await request.json()
     const { trackId, artistId: artistIdFromBody } = body ?? {}
@@ -10,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!trackId) {
       return NextResponse.json(
         { error: 'trackId is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -29,7 +33,7 @@ export async function POST(request: NextRequest) {
         artistId: existingTrack.artistId,
         track: existingTrack,
         created: false,
-      })
+      }, { headers: corsHeaders() })
     }
 
     // Fetch track data from iTunes
@@ -90,12 +94,16 @@ export async function POST(request: NextRequest) {
       artistId: artist.id,
       track,
       created: true,
-    })
+    }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Save track error:', error)
     return NextResponse.json(
       { error: 'Failed to save track' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }

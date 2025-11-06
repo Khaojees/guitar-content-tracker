@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 // POST /api/playlist/[id]/tracks - เพิ่มเพลงเข้า playlist
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const playlistId = parseInt(id)
@@ -13,7 +17,7 @@ export async function POST(
     if (isNaN(playlistId)) {
       return NextResponse.json(
         { error: 'Invalid playlist ID' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -23,7 +27,7 @@ export async function POST(
     if (!trackId || typeof trackId !== 'number') {
       return NextResponse.json(
         { error: 'Track ID is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -40,7 +44,7 @@ export async function POST(
     if (existing) {
       return NextResponse.json(
         { error: 'Track already in playlist' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -74,12 +78,12 @@ export async function POST(
       data: { updatedAt: new Date() },
     })
 
-    return NextResponse.json(playlistTrack)
+    return NextResponse.json(playlistTrack, { headers: corsHeaders() })
   } catch (error) {
     console.error('Error adding track to playlist:', error)
     return NextResponse.json(
       { error: 'Failed to add track to playlist' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }
@@ -89,6 +93,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const playlistId = parseInt(id)
@@ -96,7 +103,7 @@ export async function DELETE(
     if (isNaN(playlistId)) {
       return NextResponse.json(
         { error: 'Invalid playlist ID' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -106,7 +113,7 @@ export async function DELETE(
     if (isNaN(trackId)) {
       return NextResponse.json(
         { error: 'Invalid track ID' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -125,12 +132,16 @@ export async function DELETE(
       data: { updatedAt: new Date() },
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Error removing track from playlist:', error)
     return NextResponse.json(
       { error: 'Failed to remove track from playlist' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }

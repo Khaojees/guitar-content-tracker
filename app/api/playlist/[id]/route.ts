@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 // GET /api/playlist/[id] - ดึง playlist ตาม id
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const playlistId = parseInt(id)
@@ -13,7 +17,7 @@ export async function GET(
     if (isNaN(playlistId)) {
       return NextResponse.json(
         { error: 'Invalid playlist ID' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -39,16 +43,16 @@ export async function GET(
     if (!playlist) {
       return NextResponse.json(
         { error: 'Playlist not found' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders() }
       )
     }
 
-    return NextResponse.json(playlist)
+    return NextResponse.json(playlist, { headers: corsHeaders() })
   } catch (error) {
     console.error('Error fetching playlist:', error)
     return NextResponse.json(
       { error: 'Failed to fetch playlist' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }
@@ -58,6 +62,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const playlistId = parseInt(id)
@@ -65,7 +72,7 @@ export async function PATCH(
     if (isNaN(playlistId)) {
       return NextResponse.json(
         { error: 'Invalid playlist ID' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -80,12 +87,12 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json(playlist)
+    return NextResponse.json(playlist, { headers: corsHeaders() })
   } catch (error) {
     console.error('Error updating playlist:', error)
     return NextResponse.json(
       { error: 'Failed to update playlist' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }
@@ -95,6 +102,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const playlistId = parseInt(id)
@@ -102,7 +112,7 @@ export async function DELETE(
     if (isNaN(playlistId)) {
       return NextResponse.json(
         { error: 'Invalid playlist ID' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -110,12 +120,16 @@ export async function DELETE(
       where: { id: playlistId },
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Error deleting playlist:', error)
     return NextResponse.json(
       { error: 'Failed to delete playlist' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }

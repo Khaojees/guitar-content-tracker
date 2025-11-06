@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const artistId = parseInt(id, 10)
@@ -12,7 +16,7 @@ export async function GET(
     if (Number.isNaN(artistId)) {
       return NextResponse.json(
         { error: 'รหัสศิลปินไม่ถูกต้อง' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -65,12 +69,16 @@ export async function GET(
 
     const albums = Array.from(albumsMap.values())
 
-    return NextResponse.json({ albums })
+    return NextResponse.json({ albums }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Fetch artist tracks error:', error)
     return NextResponse.json(
       { error: 'ไม่สามารถดึงข้อมูลเพลงได้' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }

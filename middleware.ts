@@ -2,13 +2,35 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // ถ้าไม่ได้ตั้ง AUTH_PASSWORD ก็ให้ผ่านไปได้เลย (สำหรับ dev)
+  const { pathname } = request.nextUrl
+
+  // สำหรับ API routes: ใช้ API key แทน Basic Auth
+  if (pathname.startsWith('/api/')) {
+    const apiKey = process.env.API_KEY
+
+    // ถ้าไม่ได้ตั้ง API_KEY ก็ให้ผ่านไปได้เลย (สำหรับ dev)
+    if (!apiKey) {
+      return NextResponse.next()
+    }
+
+    const requestApiKey = request.headers.get('x-api-key')
+
+    if (requestApiKey !== apiKey) {
+      return NextResponse.json(
+        { error: 'Invalid or missing API key' },
+        { status: 401 }
+      )
+    }
+
+    return NextResponse.next()
+  }
+
+  // สำหรับเว็บ UI: ใช้ Basic Auth
   const authPassword = process.env.AUTH_PASSWORD
   if (!authPassword) {
     return NextResponse.next()
   }
 
-  // เช็ค Basic Auth header
   const authHeader = request.headers.get('authorization')
 
   if (!authHeader) {

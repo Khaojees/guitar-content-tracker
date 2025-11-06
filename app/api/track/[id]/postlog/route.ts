@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const trackId = parseInt(id)
@@ -14,7 +18,7 @@ export async function POST(
     if (!trackId || !platform || !url) {
       return NextResponse.json(
         { error: 'trackId, platform, and url are required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -52,12 +56,12 @@ export async function POST(
     return NextResponse.json({
       message: 'Post log created',
       postLog,
-    })
+    }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Create post log error:', error)
     return NextResponse.json(
       { error: 'Failed to create post log' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
 }
@@ -66,6 +70,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const trackId = parseInt(id)
@@ -80,15 +87,19 @@ export async function GET(
     })
 
     if (!trackStatus) {
-      return NextResponse.json({ postLogs: [] })
+      return NextResponse.json({ postLogs: [] }, { headers: corsHeaders() })
     }
 
-    return NextResponse.json({ postLogs: trackStatus.postLogs })
+    return NextResponse.json({ postLogs: trackStatus.postLogs }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Get post logs error:', error)
     return NextResponse.json(
       { error: 'Failed to get post logs' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { fetchArtistAlbumsFromItunes, fetchAlbumTracksFromItunes } from '@/lib/itunes'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { id } = await params
     const artistId = parseInt(id)
@@ -23,13 +27,13 @@ export async function GET(
     })
 
     if (!artist) {
-      return NextResponse.json({ error: 'Artist not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Artist not found' }, { status: 404, headers: corsHeaders() })
     }
 
     if (!artist.itunesId) {
       return NextResponse.json(
         { error: 'Artist has no iTunes ID' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       )
     }
 
@@ -70,12 +74,16 @@ export async function GET(
         itunesId: artist.itunesId,
       },
       albums: albumsWithTracks,
-    })
+    }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Fetch artist albums error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch artist albums' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 type ArtistResult = {
   artistId?: number
@@ -53,12 +54,15 @@ async function enhanceArtistArtwork(results: ArtistResult[]) {
 }
 
 export async function GET(request: NextRequest) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   const searchParams = request.nextUrl.searchParams
   const term = searchParams.get('term')
   const entity = searchParams.get('entity') || 'musicArtist' // musicArtist, song, album
 
   if (!term) {
-    return NextResponse.json({ error: 'term is required' }, { status: 400 })
+    return NextResponse.json({ error: 'term is required' }, { status: 400, headers: corsHeaders() })
   }
 
   try {
@@ -75,10 +79,14 @@ export async function GET(request: NextRequest) {
       data.results = await enhanceArtistArtwork(data.results as ArtistResult[])
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: corsHeaders() })
   } catch (error) {
     console.error('iTunes API error:', error)
-    return NextResponse.json({ error: 'Failed to search' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to search' }, { status: 500, headers: corsHeaders() })
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }
 

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { corsHeaders, handleCors } from '@/lib/cors'
 
 export async function GET(request: NextRequest) {
+  const corsResponse = handleCors(request)
+  if (corsResponse) return corsResponse
+
   try {
     const { searchParams } = new URL(request.url)
     const mode = searchParams.get('mode') || 'starred'
@@ -48,7 +52,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         message: mode === 'starred' ? 'No starred tracks available' : 'No tracks available',
         track: null,
-      })
+      }, { headers: corsHeaders() })
     }
 
     // Random selection
@@ -71,12 +75,16 @@ export async function GET(request: NextRequest) {
         status: selected.trackStatus?.status || 'idea',
         starred: selected.trackStatus?.starred || false,
       },
-    })
+    }, { headers: corsHeaders() })
   } catch (error) {
     console.error('Random starred error:', error)
     return NextResponse.json(
       { error: 'Failed to get random track' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     )
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return handleCors(request)
 }
