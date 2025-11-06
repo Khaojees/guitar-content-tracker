@@ -69,7 +69,7 @@ function RandomPageContent() {
   const { modal, message: antMessage } = AntApp.useApp();
   const [track, setTrack] = useState<RandomTrack | null>(null);
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<"starred" | "all">("starred");
+  const [mode, setMode] = useState<"starred" | "all">("all");
 
   const getRandomTrack = async () => {
     setLoading(true);
@@ -249,8 +249,8 @@ function RandomPageContent() {
                 setTrack(null); // Clear current track when switching modes
               }}
               options={[
-                { label: "เพลงติดดาว", value: "starred" },
                 { label: "ทุกเพลง", value: "all" },
+                { label: "เพลงติดดาว", value: "starred" },
               ]}
               size="large"
             />

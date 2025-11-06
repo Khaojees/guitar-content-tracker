@@ -336,7 +336,7 @@ export default function PlaylistDetailPage({
       dataIndex: ["track", "name"],
       key: "name",
       fixed: "left",
-      width: 200,
+      width: window.innerWidth < 768 ? 150 : 200,
       render: (name, record) => (
         <Link
           href={`/artists/${record.track.artist.id}`}

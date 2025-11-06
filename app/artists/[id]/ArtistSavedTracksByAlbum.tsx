@@ -79,6 +79,7 @@ export default function ArtistSavedTracksByAlbum({
   const [showIgnored, setShowIgnored] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatingIds, setUpdatingIds] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     fetchTracks();
@@ -314,6 +315,14 @@ export default function ArtistSavedTracksByAlbum({
         // Filter by showIgnored
         if (!showIgnored && track.ignored) return false;
 
+        // Filter by search query
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matchesName = track.name.toLowerCase().includes(query);
+          const matchesAlbum = track.albumName.toLowerCase().includes(query);
+          if (!matchesName && !matchesAlbum) return false;
+        }
+
         // Filter by status/starred
         if (filter === "all") return true;
         if (filter === "starred") return track.starred;
@@ -322,7 +331,7 @@ export default function ArtistSavedTracksByAlbum({
     }));
 
     return filteredData.filter((album) => album.tracks.length > 0);
-  }, [albums, filter, showIgnored]);
+  }, [albums, filter, showIgnored, searchQuery]);
 
   const columns: ColumnsType<SavedTrack> = [
     {
@@ -330,7 +339,7 @@ export default function ArtistSavedTracksByAlbum({
       dataIndex: "name",
       key: "name",
       fixed: "left",
-      width: 200,
+      width: window.innerWidth < 768 ? 150 : 200,
       render: (name: string) => (
         <span className="font-medium text-gray-900">{name}</span>
       ),
@@ -530,6 +539,13 @@ export default function ArtistSavedTracksByAlbum({
               โหลดใหม่
             </Button>
           </div>
+          <Input.Search
+            placeholder="ค้นหาเพลงหรืออัลบัม"
+            allowClear
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full md:max-w-md"
+          />
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <Button
               type={showIgnored ? "primary" : "default"}

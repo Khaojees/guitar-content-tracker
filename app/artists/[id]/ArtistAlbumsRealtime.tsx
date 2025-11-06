@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   Collapse,
@@ -10,6 +10,7 @@ import {
   Spin,
   Avatar,
   Empty,
+  Input,
 } from "antd";
 import {
   SaveOutlined,
@@ -67,6 +68,8 @@ export default function ArtistAlbumsRealtime({
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingTracks, setSavingTracks] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeKeys, setActiveKeys] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAlbums();
@@ -129,6 +132,32 @@ export default function ArtistAlbumsRealtime({
     }
   };
 
+  const filteredAlbums = useMemo(() => {
+    if (!searchQuery) return albums;
+
+    return albums
+      .map((album) => ({
+        ...album,
+        tracks: album.tracks.filter((track) => {
+          const query = searchQuery.toLowerCase();
+          return (
+            track.trackName.toLowerCase().includes(query) ||
+            album.collectionName.toLowerCase().includes(query)
+          );
+        }),
+      }))
+      .filter((album) => album.tracks.length > 0);
+  }, [albums, searchQuery]);
+
+  // Auto-expand albums when searching
+  useEffect(() => {
+    if (searchQuery) {
+      setActiveKeys(filteredAlbums.map((album) => String(album.collectionId)));
+    } else {
+      setActiveKeys([]);
+    }
+  }, [searchQuery, filteredAlbums]);
+
   if (loading) {
     return (
       <Card className="glass-surface border-none bg-white/90">
@@ -150,7 +179,7 @@ export default function ArtistAlbumsRealtime({
     );
   }
 
-  const collapseItems = albums.map((album) => {
+  const collapseItems = filteredAlbums.map((album) => {
     const savedTracksCount = album.tracks.filter((t) => t.saved).length;
 
     return {
@@ -275,11 +304,27 @@ export default function ArtistAlbumsRealtime({
         </Tag>
       </div>
 
-      <Collapse
-        accordion
-        className="glass-surface border-none bg-white/90"
-        items={collapseItems}
+      <Input.Search
+        placeholder="ค้นหาเพลงหรืออัลบัม"
+        allowClear
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full md:max-w-md"
       />
+
+      {filteredAlbums.length === 0 ? (
+        <Card className="glass-surface border-none bg-white/90">
+          <Empty description="ไม่พบเพลงที่ตรงกับคำค้นหา" />
+        </Card>
+      ) : (
+        <Collapse
+          accordion={false}
+          activeKey={activeKeys}
+          onChange={(keys) => setActiveKeys(keys as string[])}
+          className="glass-surface border-none bg-white/90"
+          items={collapseItems}
+        />
+      )}
     </div>
   );
 }
