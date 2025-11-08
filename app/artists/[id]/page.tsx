@@ -32,7 +32,11 @@ export default async function ArtistDetailPage({
   return (
     <div className="space-y-8">
       <ArtistHeader artist={artist} />
-      <ArtistTracksView artistId={artist.id} artistName={artist.name} />
+      <ArtistTracksView
+        artistId={artist.id}
+        artistName={artist.name}
+        hasItunesId={!!artist.itunesId}
+      />
     </div>
   );
 }

@@ -52,6 +52,7 @@ type SavedAlbum = {
 type ArtistSavedTracksByAlbumProps = {
   artistId: number;
   artistName: string;
+  refreshKey?: number;
 };
 
 const STATUS_CONFIG: Record<TrackStatusKey, { label: string; color: string }> =
@@ -72,6 +73,7 @@ const formatDuration = (ms: number | null) => {
 export default function ArtistSavedTracksByAlbum({
   artistId,
   artistName,
+  refreshKey = 0,
 }: ArtistSavedTracksByAlbumProps) {
   const { message, modal } = App.useApp();
   const [albums, setAlbums] = useState<SavedAlbum[]>([]);
@@ -83,7 +85,7 @@ export default function ArtistSavedTracksByAlbum({
 
   useEffect(() => {
     fetchTracks();
-  }, [artistId]);
+  }, [artistId, refreshKey]);
 
   const fetchTracks = async () => {
     setLoading(true);
@@ -339,7 +341,7 @@ export default function ArtistSavedTracksByAlbum({
       dataIndex: "name",
       key: "name",
       fixed: "left",
-      width: window.innerWidth < 768 ? 150 : 200,
+      width: typeof window !== 'undefined' && window.innerWidth < 768 ? 150 : 200,
       render: (name: string) => (
         <span className="font-medium text-gray-900">{name}</span>
       ),

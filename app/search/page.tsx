@@ -22,7 +22,6 @@ const { Title, Paragraph, Text } = Typography;
 const ENTITY_OPTIONS = [
   { value: "musicArtist", label: "Artists" },
   { value: "song", label: "Songs" },
-  { value: "album", label: "Albums" },
 ];
 
 const ENTITY_LABEL: Record<string, string> = {

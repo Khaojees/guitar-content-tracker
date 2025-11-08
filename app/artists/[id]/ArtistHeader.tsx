@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { App, Card, Button } from "antd";
+import { App, Card, Button, Tag } from "antd";
 import {
   DeleteOutlined,
   ArrowLeftOutlined,
   ExclamationCircleOutlined,
+  AppleOutlined,
+  EditOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import type { Prisma } from "@prisma/client";
@@ -93,6 +95,15 @@ export default function ArtistHeader({
               <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600">
                 ID {artist.id}
               </span>
+              {artist.itunesId ? (
+                <Tag icon={<AppleOutlined />} color="blue">
+                  iTunes
+                </Tag>
+              ) : (
+                <Tag icon={<EditOutlined />} color="orange">
+                  Manual
+                </Tag>
+              )}
             </div>
             <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">
               {artist.name}

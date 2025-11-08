@@ -1,20 +1,30 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, Segmented } from 'antd'
+import { Card, Segmented, Button } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import ArtistAlbumsRealtime from './ArtistAlbumsRealtime'
 import ArtistSavedTracksByAlbum from './ArtistSavedTracksByAlbum'
+import AddTrackModal from './AddTrackModal'
 
 type ArtistTracksViewProps = {
   artistId: number
   artistName: string
+  hasItunesId: boolean
 }
 
 export default function ArtistTracksView({
   artistId,
   artistName,
+  hasItunesId,
 }: ArtistTracksViewProps) {
   const [viewMode, setViewMode] = useState<'add' | 'manage'>('manage')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleTrackAdded = () => {
+    setRefreshKey(prev => prev + 1)
+  }
 
   return (
     <div className="space-y-4">
@@ -25,25 +35,50 @@ export default function ArtistTracksView({
               โหมดการจัดการเพลง
             </h3>
             <p className="text-sm text-slate-500">
-              สลับมุมมองเพื่อเพิ่มเพลงใหม่หรือจัดการเพลงที่บันทึกไว้
+              {hasItunesId
+                ? 'สลับมุมมองเพื่อเพิ่มเพลงใหม่หรือจัดการเพลงที่บันทึกไว้'
+                : 'จัดการเพลงที่บันทึกไว้'}
             </p>
           </div>
-          <Segmented
-            value={viewMode}
-            onChange={(value) => setViewMode(value as 'add' | 'manage')}
-            options={[
-              { label: 'จัดการเพลงที่บันทึก', value: 'manage' },
-              { label: 'เพิ่มเพลงใหม่', value: 'add' },
-            ]}
-          />
+          <div className="flex gap-2">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setModalOpen(true)}
+            >
+              เพิ่มเพลง (Manual)
+            </Button>
+            {hasItunesId && (
+              <Segmented
+                value={viewMode}
+                onChange={(value) => setViewMode(value as 'add' | 'manage')}
+                options={[
+                  { label: 'จัดการเพลง', value: 'manage' },
+                  { label: 'เพิ่มจาก iTunes', value: 'add' },
+                ]}
+              />
+            )}
+          </div>
         </div>
       </Card>
 
-      {viewMode === 'manage' ? (
-        <ArtistSavedTracksByAlbum artistId={artistId} artistName={artistName} />
+      {viewMode === 'manage' || !hasItunesId ? (
+        <ArtistSavedTracksByAlbum
+          artistId={artistId}
+          artistName={artistName}
+          refreshKey={refreshKey}
+        />
       ) : (
         <ArtistAlbumsRealtime artistId={artistId} artistName={artistName} />
       )}
+
+      <AddTrackModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        artistId={artistId}
+        artistName={artistName}
+        onTrackAdded={handleTrackAdded}
+      />
     </div>
   )
 }

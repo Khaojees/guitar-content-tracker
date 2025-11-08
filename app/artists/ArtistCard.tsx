@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, Button, Badge, App } from 'antd'
-import { DeleteOutlined, RightOutlined, UserOutlined } from '@ant-design/icons'
+import { Card, Button, Badge, App, Tag } from 'antd'
+import { DeleteOutlined, RightOutlined, UserOutlined, AppleOutlined, EditOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -12,6 +12,7 @@ type ArtistCardProps = {
     id: number
     name: string
     imageUrl: string | null
+    itunesId: string | null
     _count: {
       tracks: number
     }
@@ -70,7 +71,18 @@ export default function ArtistCard({ artist }: ArtistCardProps) {
             )}
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">{artist.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-gray-900">{artist.name}</h3>
+              {artist.itunesId ? (
+                <Tag icon={<AppleOutlined />} color="blue" className="!m-0">
+                  iTunes
+                </Tag>
+              ) : (
+                <Tag icon={<EditOutlined />} color="orange" className="!m-0">
+                  Manual
+                </Tag>
+              )}
+            </div>
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
               <Badge count={artist._count.tracks} showZero color="green" />
               <span>เพลงที่บันทึก</span>

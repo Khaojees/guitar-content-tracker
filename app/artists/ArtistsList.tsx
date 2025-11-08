@@ -7,7 +7,11 @@ import ArtistCard from './ArtistCard'
 import type { Prisma } from '@prisma/client'
 
 type ArtistWithCounts = Prisma.ArtistGetPayload<{
-  include: {
+  select: {
+    id: true
+    name: true
+    imageUrl: true
+    itunesId: true
     _count: {
       select: {
         tracks: true
